@@ -26,7 +26,7 @@ npm start         # jalankan hasil build
 ## Data katalog
 
 - Seed saat ini dibangun dari [anime-offline-database](https://github.com/manami-project/anime-offline-database) rilis `2026-27` (ODbL-1.0 + DbCL) ditambah kurasi manual.
-- Nimelist tidak menyimpan data AniList. Integrasi provider memerlukan izin tertulis.
+- AniList belum diaktifkan. Minta klarifikasi tertulis atas fitur dan penyimpanan yang diusulkan sebelum membuat panggilan API atau menyimpan datanya; lihat [rencana integrasi AniList](docs/plan/12-anilist-integration.md).
 - Poster tetap milik pemegang haknya dan bukan bagian dari lisensi ODbL.
 - Skor untuk judul Fall 2026 dikosongkan karena sampel suaranya belum reliabel.
 - Tautan platform adalah tautan pencarian resmi, bukan klaim ketersediaan region Indonesia.

@@ -14,6 +14,7 @@ This checklist separates completed design work from runnable scaffolding and pro
 - [x] Confirmed that the public Jikan API was discontinued; it is not a production dependency. [Official notice](https://github.com/jikan-me/jikan-rest/issues/613)
 - [x] Updated the design, data, search, security, sync, risk, and roadmap documents.
 - [x] Updated README architecture notes while preserving the existing seed/script edits.
+- [x] Added a gated AniList integration plan; current AniList terms and product-fit questions are documented before any API use.
 
 ## Completed: implementation foundation
 
@@ -85,6 +86,7 @@ This checklist separates completed design work from runnable scaffolding and pro
 - [x] Implement the seed importer through the Catalog API; seed import dry-run is local and live import awaits PostgreSQL provisioning.
 - [ ] Add queue, scheduler, retry/backoff, provider rate limiting, sync-run records, and dead-letter handling.
 - [ ] Keep provider adapters disabled until their current terms and data-retention permissions are reviewed.
+- [ ] Follow [the AniList integration plan](plan/12-anilist-integration.md): obtain written clarification for one exact feature before live requests, OAuth, caching, or persistent data changes.
 - [ ] Add one approved provider adapter only after that review; retain manual curation as an independent path.
 - [ ] Do not configure `api.jikan.moe`; evaluate self-hosted Jikan separately if still desired.
 

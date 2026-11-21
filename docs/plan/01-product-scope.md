@@ -314,7 +314,7 @@ Nimelist will **not**:
 
 | Assumption | How to validate | Deadline |
 |---|---|---|
-| AniList will grant written permission for a complementary Indonesian info/tracker service | Send request in Phase 0; document response | Week 1–2 |
+| AniList will allow the exact proposed feature and data handling for Nimelist | Ask the feature-specific questions in `12-anilist-integration.md`; keep calls disabled until response is clear | Week 1–2 |
 | ODbL seed is legally usable with attribution/share-alike | Legal review; publish attribution and derived DB offer | Week 1 |
 | 50–80 current-season titles can be curated in < 3 h/week | Time the first two weeks | Week 3 |
 | Users will click legal streaming links | Track outbound clicks from day one | Week 6 |

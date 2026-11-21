@@ -78,7 +78,7 @@ Provider access is a replaceable adapter, not a direct dependency of page render
 | anime-offline-database | Initial catalog seed | Keep ODbL/DbCL attribution and share-alike obligations; check archived-data freshness |
 | Manual curation | Indonesian synopsis, WIB schedule, legal platform references | Record source, editor, confidence, and last-verified timestamp |
 | MyAnimeList API v2 | Candidate metadata/import provider | Register a client and review the API agreement before storing or redistributing data; no scraping |
-| AniList | Candidate metadata provider | Disabled until written permission; its terms prohibit data hoarding/storage and competing tracker use |
+| AniList | Candidate, feature-specific integration | Disabled until AniList clarifies that the exact use and data handling are allowed; no bulk sync or persistent import under the current plan |
 | Self-hosted Jikan | Optional adapter only | Separate technical/legal review; public instance is discontinued; private setup requires indexing and operational maintenance |
 
 The sync service should tolerate no provider being configured. Catalog pages remain served from Nimelist's database and manual curation.

@@ -164,7 +164,7 @@ flowchart LR
 ### 5.1 MAL import
 
 - Use the official MyAnimeList API v2 OAuth flow. Never scrape.
-- Scope: read user’s anime list; write only if the user opts into two-way sync.
+- Proposed access: read the user's list first; any write-back requires separate product consent and explicit terms clarification. AniList does not support OAuth scopes, so the token is not technically read-only.
 - Map MAL IDs to `external_id(provider='MAL')`.
 - Import status, score, progress, start/finish dates, notes (if available).
 - Conflict policy: “keep newest” or “prefer Nimelist”; show a preview before committing.
@@ -173,11 +173,11 @@ flowchart LR
 
 ### 5.2 AniList sync
 
-- Only after written AniList permission.
-- OAuth with `read`/`write` scopes as approved.
-- Two-way sync is the strongest argument for permission, but it increases conflict complexity. Start one-way import, then add push sync.
+- Follow `12-anilist-integration.md`; first get written clarification that the exact feature is permitted. AniList OAuth does not establish permission by itself.
+- AniList currently does not support OAuth scopes; treat tokens as broad access. Use server-side Authorization Code Grant only if account integration is approved.
+- Start with the narrowest approved user-requested read flow. Do not add bulk media sync or write-back unless each is explicitly in scope.
 - Conflict resolution: last-write-wins with a visible “last synced” timestamp; never silently overwrite a Nimelist-only note.
-- Provide a kill switch and a full disconnect that deletes stored tokens.
+- Provide a kill switch and a full disconnect that deletes any stored tokens and user data whose retention is no longer permitted.
 
 ### 5.3 Mapping quality
 

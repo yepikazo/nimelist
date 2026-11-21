@@ -29,7 +29,7 @@ The original brief puts “auth + watchlist + schedule” in Phase 2. Because th
 
 ### 2.1 Legal and product decisions
 
-- [ ] Send AniList permission request (template in `05-data-sync.md`) — **0.5 d** — owner: founder
+- [ ] Send AniList feature-specific clarification request (flow in `12-anilist-integration.md`) — **0.5 d** — owner: founder
 - [ ] Record AniList response/timeline; decide fallback if no response by Week 2 — **0.5 d**
 - [ ] Legal review of ODbL attribution/share-alike — **0.5 d** — owner: founder + counsel
 - [ ] Decide image policy (hotlink + attribution + takedown vs licensed assets) — **0.5 d**
@@ -298,7 +298,7 @@ The original brief puts “auth + watchlist + schedule” in Phase 2. Because th
 ### 6.3 Import/sync
 
 - [ ] MAL OAuth import + mapping + preview — **3 d**
-- [ ] AniList OAuth import/sync **only after permission** — **4 d**
+- [ ] AniList user integration **only after feature-specific terms clarification** — **4 d**
 - [ ] Conflict resolution + progress UI — **1.5 d**
 - [ ] Disconnect/delete tokens — **0.5 d**
 
