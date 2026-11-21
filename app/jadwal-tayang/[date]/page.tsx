@@ -14,7 +14,7 @@ import { EmptyState } from "@/components/empty-state";
 import { JsonLd } from "@/components/json-ld";
 import { ScheduleRow } from "@/components/schedule-card";
 import { DAY_SHORT_LABELS, SITE_URL } from "@/lib/constants";
-import { getScheduleForDate, getTodayDate, getWeekSchedule } from "@/lib/repository";
+import { getJakartaToday, getServiceSchedule, getServiceWeekSchedule } from "@/lib/service-clients";
 import {
   addDays,
   formatDateId,
@@ -28,7 +28,7 @@ import {
 type Params = Promise<{ date: string }>;
 
 export async function generateStaticParams() {
-  const today = await getTodayDate();
+  const today = getJakartaToday();
   return weekDates(today).map((date) => ({ date }));
 }
 
@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!isValidIsoDate(date)) {
     return { title: "Tanggal tidak valid", robots: { index: false, follow: false } };
   }
-  const items = await getScheduleForDate(date);
+  const items = await getServiceSchedule(date);
   const readable = formatDateId(date, {
     weekday: "long",
     day: "numeric",
@@ -60,10 +60,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function ScheduleDatePage({ params }: { params: Params }) {
   const { date } = await params;
   if (!isValidIsoDate(date)) notFound();
-  const today = await getTodayDate();
+  const today = getJakartaToday();
 
   const week = weekDates(date);
-  const weekData = await getWeekSchedule(week[0]);
+  const weekData = await getServiceWeekSchedule(week[0]);
   const current = weekData.find((day) => day.date === date);
   const items = current?.items ?? [];
   const isToday = date === today;

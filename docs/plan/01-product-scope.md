@@ -52,7 +52,7 @@ Nimelist wins by being **local, accurate, and legal**, not by having the largest
 | A new season starts | see what is airing and where | decide what to watch | Season page + schedule |
 | It is Tuesday 19.00 WIB | know what airs tonight | not miss an episode | Today schedule, countdown |
 | I see a title on social media | check if it is legal to watch | avoid pirate sites | Detail page + platform badges |
-| I forget an old title | search by half-remembered Indonesian/English name | find it fast | Search with synonyms/typos |
+| I forget an old title | search by a partial Indonesian/English/romaji title | find it fast | Search with title matching and typo tolerance |
 | I finish an episode | mark progress | keep my list accurate | Watchlist (Phase 2) |
 | I have an opinion | rate/review without spoiling others | contribute | Ratings/reviews (Phase 4) |
 | I come from MAL/AniList | bring my list | not start over | Import/sync (Phase 4) |
@@ -130,7 +130,7 @@ Because the chosen launch is a **4–6 week schedule MVP**, the launch scope is 
 | Area | Included | Notes |
 |---|---|---|
 | Catalog | ODbL seed + curated current season | Full 41k catalog browsable; thin pages `noindex` |
-| Search | Postgres FTS + trigram | Romaji, English, Indonesian, synonyms |
+| Search | Postgres FTS + trigram | Title search in romaji, English, or Indonesian; basic typo tolerance |
 | Anime detail | Title, synopsis, genres, studio, score, season, episodes, status, poster | Indonesian synopsis for current/top titles |
 | Schedule | 7-day WIB view, today, filters | Manual curation; WITA/WIT toggle later |
 | Streaming | Legal platforms in Indonesia | Manual links, last verified, report broken link |
@@ -145,6 +145,7 @@ Because the chosen launch is a **4–6 week schedule MVP**, the launch scope is 
 - User accounts, watchlists, ratings, reviews, follows, notifications.
 - MAL/AniList import or sync.
 - Meilisearch (use Postgres FTS).
+- Curated synonyms, advanced search facets, and relevance tuning beyond the initial title search.
 - Ads, premium, payments.
 - Comments, forums, direct messages.
 - English UI / hreflang.
@@ -167,7 +168,7 @@ Because the chosen launch is a **4–6 week schedule MVP**, the launch scope is 
 | Feature | Priority | MVP? | Notes |
 |---|---|---|---|
 | Anime catalog list | Must | Yes | Paginated, filterable |
-| Search (romaji/English/Indonesian/synonyms) | Must | Yes | Typo tolerant |
+| Search (romaji/English/Indonesian title) | Must | Yes | Initial title search with trigram typo tolerance; synonyms deferred |
 | Filter by genre, season, year, status, format, platform | Must | Yes | URL state, canonical rules |
 | Sort by popularity, score, start date, title | Must | Yes | |
 | Anime detail | Must | Yes | |
@@ -314,7 +315,7 @@ Nimelist will **not**:
 
 | Assumption | How to validate | Deadline |
 |---|---|---|
-| AniList will grant written permission for a complementary Indonesian info/tracker service | Send request in Phase 0; document response | Week 1–2 |
+| AniList will allow the exact proposed feature and data handling for Nimelist | Ask the feature-specific questions in `12-anilist-integration.md`; keep calls disabled until response is clear | Week 1–2 |
 | ODbL seed is legally usable with attribution/share-alike | Legal review; publish attribution and derived DB offer | Week 1 |
 | 50–80 current-season titles can be curated in < 3 h/week | Time the first two weeks | Week 3 |
 | Users will click legal streaming links | Track outbound clicks from day one | Week 6 |

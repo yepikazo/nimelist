@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/empty-state";
 import { MediaGrid } from "@/components/media-grid";
 import { Pagination } from "@/components/pagination";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { getCatalogFacets, listMedia } from "@/lib/repository";
+import { getCatalogFacets, getCatalogMedia } from "@/lib/service-clients";
 import { STATUS_LABELS } from "@/lib/constants";
 import {
   buildQuery,
@@ -94,7 +94,7 @@ async function CatalogContent({ searchParams }: { searchParams: SearchParams }) 
     pageSize: 24,
   };
 
-  const [facets, result] = await Promise.all([getCatalogFacets(), listMedia(filters)]);
+  const [facets, result] = await Promise.all([getCatalogFacets(), getCatalogMedia(filters)]);
   const queryParams = {
     q,
     genre,

@@ -7,6 +7,7 @@ import {
   startHttpService,
 } from "../../../packages/service-runtime/src/index.mjs";
 import { pool } from "./db.mjs";
+import { startSearchOutboxRelay } from "./search-outbox-relay.mjs";
 
 const port = Number(process.env.PORT ?? 4101);
 const providers = new Set(["offline-db", "manual", "mal", "anilist", "jikan-self-hosted"]);
@@ -46,12 +47,48 @@ function mediaSummary(row) {
     titleRomaji: row.title_romaji,
     titleEnglish: row.title_english,
     titleId: row.title_id,
+    synopsisId: ["REVIEWED", "PUBLISHED"].includes(row.content_status) ? row.synopsis_id : null,
     format: row.format,
     status: row.status,
     season: row.season,
     seasonYear: row.season_year == null ? null : Number(row.season_year),
+    episodes: row.episodes == null ? null : Number(row.episodes),
+    durationMinutes: row.duration_minutes == null ? null : Number(row.duration_minutes),
+    scoreAvg: row.score_avg == null ? null : Number(row.score_avg),
+    popularity: Number(row.popularity ?? 0),
     coverUrl: row.cover_url,
+    isAdult: Boolean(row.is_adult),
+    contentStatus: row.content_status,
+    genres: row.genres ?? [],
+    studios: row.studios ?? [],
+    platforms: row.platforms ?? [],
   };
+}
+
+async function mediaTaxonomy(ids) {
+  if (!ids.length) return new Map();
+  const database = requireDatabase();
+  const [genres, studios, platforms] = await Promise.all([
+    database.query(`SELECT mg.media_id, row_number() OVER (PARTITION BY mg.media_id ORDER BY g.name_id, g.slug) AS id,
+      g.slug, g.name, COALESCE(g.name_id, g.name) AS "nameId", g.description_id AS description
+      FROM media_genre mg JOIN catalog_genre g ON g.slug=mg.genre_slug WHERE mg.media_id=ANY($1::uuid[])`, [ids]),
+    database.query(`SELECT ms.media_id, row_number() OVER (PARTITION BY ms.media_id ORDER BY s.name, s.slug) AS id,
+      s.slug, s.name FROM media_studio ms JOIN catalog_studio s ON s.slug=ms.studio_slug WHERE ms.media_id=ANY($1::uuid[])`, [ids]),
+    database.query(`SELECT l.media_id, row_number() OVER (PARTITION BY l.media_id ORDER BY p.sort_order, p.name) AS id,
+      p.slug, p.name, p.website_url AS "websiteUrl",
+      COALESCE(p.search_url_template, 'https://www.google.com/search?q={q}') AS "searchUrlTemplate",
+      COALESCE(p.color, '#777777') AS color, COALESCE(p.description, '') AS description, p.sort_order AS "sortOrder"
+      FROM media_platform_link l JOIN catalog_platform p ON p.slug=l.platform_slug
+      WHERE l.media_id=ANY($1::uuid[]) AND l.status IN ('ACTIVE', 'SEARCH_ONLY')`, [ids]),
+  ]);
+  const byId = new Map(ids.map((id) => [String(id), { genres: [], studios: [], platforms: [] }]));
+  for (const row of genres.rows) byId.get(String(row.media_id))?.genres.push({ id: Number(row.id), slug: row.slug, name: row.name, nameId: row.nameId, description: row.description });
+  for (const row of studios.rows) byId.get(String(row.media_id))?.studios.push({ id: Number(row.id), slug: row.slug, name: row.name });
+  for (const row of platforms.rows) byId.get(String(row.media_id))?.platforms.push({
+    id: Number(row.id), slug: row.slug, name: row.name, websiteUrl: row.websiteUrl,
+    searchUrlTemplate: row.searchUrlTemplate, color: row.color, description: row.description, sortOrder: Number(row.sortOrder),
+  });
+  return byId;
 }
 
 function slugify(value) {
@@ -321,9 +358,9 @@ async function importMedia(request) {
           synonyms, genres, studios, is_adult, content_status, curated_fields, source, source_url, provenance
         ) VALUES (
           $1, $2, $3, $4, $5, $6, COALESCE($7, 'UNKNOWN'), COALESCE($8, 'UNKNOWN'), $9,
-          $10, $11, $12, $13, COALESCE($14, 0), $15, $16, COALESCE($17, '{}'),
-          COALESCE($18, '{}'), COALESCE($19, '{}'), COALESCE($20, false), COALESCE($21, 'MISSING'),
-          $22, $23, $24, jsonb_build_object($23, jsonb_build_object('externalId', $25, 'sourceUrl', $24))
+          $10, $11, $12, $13, COALESCE($14, 0), $15, $16, COALESCE($17::text[], '{}'::text[]),
+          COALESCE($18::text[], '{}'::text[]), COALESCE($19::text[], '{}'::text[]), COALESCE($20, false), COALESCE($21, 'MISSING'),
+          $22, $23, $24, jsonb_build_object($23::text, jsonb_build_object('externalId', $25::text, 'sourceUrl', $24::text))
         ) RETURNING id`,
         [slug, body.titleRomaji, body.titleEnglish, body.titleNative, body.titleId, body.synopsisId,
           body.format, body.status, body.season, body.seasonYear, body.episodes, body.durationMinutes,
@@ -448,23 +485,51 @@ async function listMedia(url) {
   }
   const yearValue = url.searchParams.get("year");
   if (yearValue != null) addCondition("season_year = ?", integerParam(yearValue, 0, 1900, 2100));
+  const status = url.searchParams.get("status");
+  if (status) {
+    if (!statuses.has(status)) fail(400, "INVALID_STATUS", "status tidak valid.");
+    addCondition("status = ?", status);
+  }
+  const format = url.searchParams.get("format");
+  if (format) {
+    if (!formats.has(format)) fail(400, "INVALID_FORMAT", "format tidak valid.");
+    addCondition("format = ?", format);
+  }
+  const platform = url.searchParams.get("platform");
+  if (platform) addCondition("EXISTS (SELECT 1 FROM media_platform_link l WHERE l.media_id=media.id AND l.platform_slug=? AND l.status IN ('ACTIVE','SEARCH_ONLY'))", platform);
+  const contentStatus = url.searchParams.get("contentStatus");
+  if (contentStatus) {
+    if (!contentStatuses.has(contentStatus)) fail(400, "INVALID_CONTENT_STATUS", "contentStatus tidak valid.");
+    addCondition("content_status = ?", contentStatus);
+  }
+
+  const sort = url.searchParams.get("sort") ?? "populer";
+  const orderBy = {
+    populer: "popularity DESC, (score_avg IS NULL) ASC, score_avg DESC, title_romaji ASC",
+    skor: "(score_avg IS NULL) ASC, score_avg DESC, popularity DESC, title_romaji ASC",
+    judul: "COALESCE(title_id, title_romaji) ASC",
+    terbaru: "season_year DESC NULLS LAST, CASE season WHEN 'FALL' THEN 4 WHEN 'SUMMER' THEN 3 WHEN 'SPRING' THEN 2 WHEN 'WINTER' THEN 1 ELSE 0 END DESC, title_romaji ASC",
+  }[sort];
+  if (!orderBy) fail(400, "INVALID_SORT", "sort tidak valid.");
 
   const where = conditions.join(" AND ");
   const countPromise = database.query(`SELECT count(*)::int AS total FROM media WHERE ${where}`, values);
   const rowValues = [...values, pageSize, (page - 1) * pageSize];
   const rowsPromise = database.query(
-    `SELECT id, slug, title_romaji, title_english, title_id, format, status,
-            season, season_year, cover_url
+    `SELECT id, slug, title_romaji, title_english, title_id, synopsis_id, format, status,
+            season, season_year, episodes, duration_minutes, score_avg, popularity, cover_url,
+            is_adult, content_status
      FROM media WHERE ${where}
-     ORDER BY popularity DESC, title_romaji ASC
+     ORDER BY ${orderBy}
      LIMIT $${rowValues.length - 1} OFFSET $${rowValues.length}`,
     rowValues,
   );
   const [count, rows] = await Promise.all([countPromise, rowsPromise]);
+  const relations = await mediaTaxonomy(rows.rows.map((row) => String(row.id)));
   return {
     status: 200,
     body: {
-      items: rows.rows.map(mediaSummary),
+      items: rows.rows.map((row) => mediaSummary({ ...row, ...relations.get(String(row.id)) })),
       page,
       pageSize,
       total: count.rows[0].total,
@@ -472,30 +537,70 @@ async function listMedia(url) {
   };
 }
 
+async function getTaxonomy() {
+  const database = requireDatabase();
+  const [genres, studios, platforms, seasons] = await Promise.all([
+    database.query(`SELECT row_number() OVER (ORDER BY COALESCE(g.name_id, g.name)) AS id, g.slug, g.name,
+      COALESCE(g.name_id, g.name) AS "nameId", g.description_id AS description, count(DISTINCT m.id)::int AS count
+      FROM catalog_genre g LEFT JOIN media_genre mg ON mg.genre_slug=g.slug
+      LEFT JOIN media m ON m.id=mg.media_id AND m.is_adult=false
+      GROUP BY g.slug, g.name, g.name_id, g.description_id ORDER BY COALESCE(g.name_id, g.name)`),
+    database.query(`SELECT row_number() OVER (ORDER BY s.name) AS id, s.slug, s.name, count(DISTINCT m.id)::int AS count
+      FROM catalog_studio s LEFT JOIN media_studio ms ON ms.studio_slug=s.slug
+      LEFT JOIN media m ON m.id=ms.media_id AND m.is_adult=false
+      GROUP BY s.slug, s.name ORDER BY s.name`),
+    database.query(`SELECT row_number() OVER (ORDER BY p.sort_order, p.name) AS id, p.slug, p.name,
+      p.website_url AS "websiteUrl", COALESCE(p.search_url_template, 'https://www.google.com/search?q={q}') AS "searchUrlTemplate",
+      COALESCE(p.color, '#777777') AS color, COALESCE(p.description, '') AS description, p.sort_order AS "sortOrder",
+      count(DISTINCT m.id)::int AS count FROM catalog_platform p
+      LEFT JOIN media_platform_link l ON l.platform_slug=p.slug AND l.status IN ('ACTIVE','SEARCH_ONLY')
+      LEFT JOIN media m ON m.id=l.media_id AND m.is_adult=false
+      WHERE p.is_active=true GROUP BY p.slug, p.name, p.website_url, p.search_url_template, p.color, p.description, p.sort_order
+      ORDER BY p.sort_order, p.name`),
+    database.query(`SELECT season, season_year AS year, count(*)::int AS count FROM media
+      WHERE is_adult=false AND season IS NOT NULL AND season_year IS NOT NULL
+      GROUP BY season, season_year ORDER BY season_year DESC,
+      CASE season WHEN 'FALL' THEN 4 WHEN 'SUMMER' THEN 3 WHEN 'SPRING' THEN 2 ELSE 1 END DESC`),
+  ]);
+  return { status: 200, body: {
+    genres: genres.rows,
+    studios: studios.rows,
+    platforms: platforms.rows.map((row) => ({ ...row, sortOrder: Number(row.sortOrder) })),
+    seasons: seasons.rows.map((row) => ({ ...row, year: Number(row.year) })),
+  } };
+}
+
 async function getMediaBySlug(slug) {
   const result = await requireDatabase().query(
-    `SELECT id, slug, title_romaji, title_english, title_id, format, status,
-            season, season_year, cover_url, synopsis_id, genres, studios, content_status
+    `SELECT id, slug, title_romaji, title_english, title_native, title_id, format, status,
+            season, season_year, episodes, duration_minutes, score_avg, popularity,
+            cover_url, banner_url, synopsis_id, synonyms, content_status, is_adult,
+            source, source_url, updated_at
      FROM media WHERE slug = $1 AND is_adult = false`,
     [slug],
   );
   if (!result.rowCount) fail(404, "MEDIA_NOT_FOUND", "Anime tidak ditemukan.");
   const row = result.rows[0];
+  const relations = (await mediaTaxonomy([String(row.id)])).get(String(row.id));
   const links = await requireDatabase().query(
     `SELECT l.platform_slug AS "platformSlug", p.name AS "platformName", l.url,
-            l.region_code AS "regionCode", l.language, l.access_type AS "accessType", l.status, l.notes
+            l.region_code AS "regionCode", l.language, l.access_type AS "accessType", l.status, l.notes,
+            p.website_url AS "websiteUrl", COALESCE(p.search_url_template, 'https://www.google.com/search?q={q}') AS "searchUrlTemplate",
+            COALESCE(p.color, '#777777') AS "platformColor", COALESCE(p.description, '') AS "platformDescription",
+            p.sort_order AS "platformSortOrder"
      FROM media_platform_link l JOIN catalog_platform p ON p.slug = l.platform_slug
      WHERE l.media_id = $1 ORDER BY p.sort_order, p.name`, [row.id],
   );
   return {
     status: 200,
     body: {
-      ...mediaSummary(row),
-      synopsisId: ["REVIEWED", "PUBLISHED"].includes(row.content_status) ? row.synopsis_id : null,
-      genres: row.genres,
-      studios: row.studios,
+      ...mediaSummary({ ...row, ...relations }),
+      titleNative: row.title_native,
+      synonyms: row.synonyms,
+      source: row.source,
+      sourceUrl: row.source_url,
+      updatedAt: row.updated_at,
       platformLinks: links.rows,
-      contentStatus: row.content_status,
     },
   };
 }
@@ -507,16 +612,59 @@ async function getInternalMedia(request, url) {
     fail(400, "INVALID_MEDIA_IDS", "ids harus berisi 1–100 UUID.");
   }
   const result = await requireDatabase().query(
-    `SELECT id, slug, COALESCE(title_id, title_romaji) AS title,
-            title_romaji AS "titleRomaji", title_english AS "titleEnglish", cover_url AS "coverUrl"
-     FROM media WHERE id = ANY($1::uuid[]) AND is_adult = false`,
+    `SELECT m.id, m.slug, COALESCE(m.title_id, m.title_romaji) AS title,
+            m.title_romaji AS "titleRomaji", m.title_english AS "titleEnglish", m.title_id AS "titleId",
+            m.format, m.status, m.season, m.season_year AS "seasonYear", m.episodes,
+            m.duration_minutes AS "durationMinutes", m.score_avg AS "scoreAvg", m.popularity,
+            m.cover_url AS "coverUrl", m.content_status AS "contentStatus", m.is_adult AS "isAdult",
+            CASE WHEN m.content_status IN ('REVIEWED', 'PUBLISHED') THEN m.synopsis_id ELSE NULL END AS "synopsisId",
+            COALESCE((SELECT json_agg(json_build_object('id', row_number, 'slug', slug, 'name', name, 'nameId', name_id, 'description', description))
+              FROM (SELECT row_number() OVER (ORDER BY g.name_id) AS row_number, g.slug, g.name, g.name_id, g.description_id AS description
+                FROM media_genre mg JOIN catalog_genre g ON g.slug=mg.genre_slug WHERE mg.media_id=m.id) genres), '[]'::json) AS genres,
+            COALESCE((SELECT json_agg(json_build_object('id', row_number, 'slug', slug, 'name', name))
+              FROM (SELECT row_number() OVER (ORDER BY s.name) AS row_number, s.slug, s.name
+                FROM media_studio ms JOIN catalog_studio s ON s.slug=ms.studio_slug WHERE ms.media_id=m.id) studios), '[]'::json) AS studios,
+            COALESCE((SELECT json_agg(json_build_object('id', row_number, 'slug', slug, 'name', name,
+                'websiteUrl', website_url, 'searchUrlTemplate', COALESCE(search_url_template, 'https://www.google.com/search?q={q}'),
+                'color', COALESCE(color, '#777777'), 'description', COALESCE(description, ''), 'sortOrder', sort_order))
+              FROM (SELECT row_number() OVER (ORDER BY p.sort_order, p.name) AS row_number, p.slug, p.name,
+                  p.website_url, p.search_url_template, p.color, p.description, p.sort_order
+                FROM media_platform_link l JOIN catalog_platform p ON p.slug=l.platform_slug
+                WHERE l.media_id=m.id AND l.status IN ('ACTIVE', 'SEARCH_ONLY')) platforms), '[]'::json) AS platforms
+     FROM media m WHERE m.id = ANY($1::uuid[]) AND m.is_adult = false`,
     [ids],
   );
   return { status: 200, body: { items: result.rows.map((row) => ({ ...row, id: String(row.id) })) } };
 }
 
+async function getInternalSearchDocuments(request, url) {
+  requireServiceToken(request);
+  const limit = integerParam(url.searchParams.get("limit"), 200, 1, 200);
+  const offset = integerParam(url.searchParams.get("offset"), 0, 0, 1_000_000);
+  const mediaId = url.searchParams.get("mediaId");
+  if (mediaId != null && !uuidPattern.test(mediaId)) fail(400, "INVALID_MEDIA_ID", "mediaId harus UUID.");
+  const result = await requireDatabase().query(`
+    SELECT m.id AS "mediaId", m.slug, m.title_romaji AS "titleRomaji", m.title_english AS "titleEnglish",
+      m.title_native AS "titleNative", m.title_id AS "titleId", m.synonyms,
+      COALESCE((SELECT array_agg(DISTINCT value) FROM (
+        SELECT g.name AS value FROM media_genre mg JOIN catalog_genre g ON g.slug = mg.genre_slug WHERE mg.media_id=m.id
+        UNION SELECT g.name_id FROM media_genre mg JOIN catalog_genre g ON g.slug=mg.genre_slug WHERE mg.media_id=m.id AND g.name_id IS NOT NULL
+      ) names), '{}'::text[]) AS genres,
+      COALESCE((SELECT array_agg(DISTINCT value) FROM (
+        SELECT s.name AS value FROM media_studio ms JOIN catalog_studio s ON s.slug=ms.studio_slug WHERE ms.media_id=m.id
+        UNION SELECT s.name_native FROM media_studio ms JOIN catalog_studio s ON s.slug=ms.studio_slug WHERE ms.media_id=m.id AND s.name_native IS NOT NULL
+      ) names), '{}'::text[]) AS studios,
+      COALESCE((SELECT array_agg(DISTINCT l.platform_slug) FROM media_platform_link l WHERE l.media_id=m.id), '{}'::text[]) AS platforms,
+      m.format, m.status, m.season, m.season_year AS "seasonYear", m.score_avg AS "scoreAvg",
+      m.popularity, m.cover_url AS "coverUrl", m.is_adult AS "isAdult", m.updated_at AS "sourceUpdatedAt"
+    FROM media m WHERE ($3::uuid IS NULL OR m.id = $3::uuid) ORDER BY m.id LIMIT $1 OFFSET $2`, [limit, offset, mediaId]);
+  return { status: 200, body: { items: result.rows, nextOffset: mediaId == null && result.rowCount === limit ? offset + result.rowCount : null } };
+}
+
 async function handleRequest(request, url) {
   if (request.method === "GET" && url.pathname === "/v1/media") return listMedia(url);
+  if (request.method === "GET" && url.pathname === "/v1/taxonomy") return getTaxonomy();
+  if (request.method === "GET" && url.pathname === "/internal/v1/search-documents") return getInternalSearchDocuments(request, url);
   if (request.method === "GET" && url.pathname === "/internal/v1/media") return getInternalMedia(request, url);
   if (request.method === "POST" && url.pathname === "/internal/v1/media/import") return importMedia(request);
   if (request.method === "POST" && url.pathname === "/internal/v1/taxonomy/import") return importTaxonomy(request);
@@ -545,3 +693,5 @@ startHttpService({
   },
   handleRequest,
 });
+
+startSearchOutboxRelay(pool);

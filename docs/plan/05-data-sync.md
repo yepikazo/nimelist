@@ -4,7 +4,7 @@
 
 1. **Visitors never call a provider API.** The web app reads Nimelist-owned Catalog, Schedule, and Search APIs.
 2. **Ingestion is the only service that talks to providers.** It has provider egress; the web app and domain APIs do not need it.
-3. **Legal gate before technical integration.** A provider is disabled unless its terms allow our use. AniList stays off until written permission.
+3. **Legal gate before technical integration.** A provider is disabled unless its terms allow our exact use. AniList stays off until written clarification covers the proposed feature and data handling; do not assume general permission overrides storage or competing-service restrictions.
 4. **Manual curation is a first-class provider.** It is not a fallback hack; it is the launch strategy.
 5. **Idempotent, resumable, observable.** Every job can run twice without duplicating data, and every run leaves a `sync_log` row.
 6. **Never overwrite curated content.** Field-level provenance and `curated_fields` protect Indonesian titles, synopses, slugs, and streaming links.
@@ -19,31 +19,31 @@
 | **Manual curation** | Schedule, streaming, Indonesian text | **Allowed** | Internal editorial work; cite sources |
 | **Jikan public API** | Former metadata adapter | **Unavailable** | Official public API discontinued 1 Oct 2026. Do not use `api.jikan.moe` as a dependency. |
 | **Jikan self-hosted** | Optional private adapter | **Evaluate separately** | Official container stack requires MongoDB and indexing; self-hosting has operational cost and does not remove upstream/source terms. |
-| **AniList** | Candidate metadata/schedule adapter | **Disabled pending written permission** | Current terms prohibit data storage/hoarding and competing tracker use; rate limits may be reduced during degraded periods. |
+| **AniList** | Candidate feature-specific adapter | **Disabled pending written clarification** | Current terms prohibit data storage/hoarding and competing non-complementary list/tracker use; whether Nimelist is covered is unresolved. |
 | **Kitsu** | Candidate metadata adapter | **Not selected** | Verify that the anime catalog API, terms, and service are still appropriate before integration; current developer docs primarily describe production-management software. |
 | **MyAnimeList API v2** | Candidate metadata or user-authorized import | **Evaluate terms before use** | Official API requires app registration/Client ID; no scraping; request limits and data-retention rights must be checked. |
 | **TMDB** | Optional streaming availability | **Evaluate later** | Verify commercial terms and watch-provider attribution before use |
 
-### AniList permission request (Phase 0)
+### AniList terms clarification (Phase 0)
 
 Send before any ingestion. Keep a copy of the sent email and the response in the legal file.
 
 **To:** contact@anilist.co
-**Subject:** API permission request — Nimelist (Indonesian anime information site)
+**Subject:** Clarification request for AniList API use in Nimelist coursework
 
 Include:
 
 - Who we are: Nimelist, an Indonesian-language anime information site, currently pre-launch.
-- What we want: permission to use the AniList GraphQL API for catalog metadata and airing schedules, stored in our own database so visitors can read fast pages.
-- Why it is complementary: deep AniList OAuth integration, “Login with AniList”, two-way list sync, clear “Data by AniList” attribution, and links back to AniList entries.
-- What we will **not** do: no mass hoarding beyond our catalog needs, no redistribution of raw API data, no competing tracker without the requested authorisation, no adult content promotion.
-- Volume: estimated requests/day, concurrency, and caching strategy.
+- Exact feature: describe one proposed use (link-out, request-time public media lookup, or user-authorized list feature); do not present bulk catalog storage as an assumed permission.
+- Ask whether Nimelist's Indonesian anime catalog/schedule is considered a competing service, and whether the exact proposed feature is permitted under the current terms.
+- State each field requested, whether results, ID mappings, user data, or cache entries would be retained, the request volume, and the UI attribution/link behavior.
+- Ask explicitly about cache lifetime, persistent storage, deletion, adult-content handling, and what restrictions apply to a coursework project.
 - Commercial model: no ads at launch; affiliate links later; revenue projection. If above $150/month, ask for the commercial licence path.
-- Data retention and deletion: what we store, how users can delete, how we purge if permission is withdrawn.
-- Kill switch: we can disable the provider and purge AniList-sourced fields within 24 hours.
+- Do not claim OAuth or two-way sync makes the service complementary; ask AniList to assess the specific feature.
+- Keep a kill switch available; only promise purging data that the approved use actually permits us to retain.
 - Contact and technical details.
 
-**Do not** start ingestion while waiting. Build the provider behind a feature flag and test with a tiny, manually supplied fixture if needed.
+**Do not** make live API calls or import AniList results while waiting. Adapter development may use local fixtures only, with the feature flag off.
 
 ---
 
@@ -128,15 +128,15 @@ If an incoming value conflicts with a curated field, log a `field_conflict` even
 | `reindex:search` | Manual/weekly | `maintenance` | 1 | Catalog API/events | rebuild Search Service index | None |
 | `health:heartbeat` | Every 5 min | `events` | 1 | Worker | push heartbeat to uptime monitor | None |
 
-### 4.2 Provider jobs (enabled only after permission)
+### 4.2 Provider jobs (enabled only after the provider's exact use is cleared)
 
 | Job | Cron | Queue | Concurrency | Source | Notes |
 |---|---|---|---|---|---|
-| `sync:airing` | Hourly at :05 | `sync` | 1 | AniList/Kitsu | Next 48 h + current season; 20 req/min cap |
-| `sync:recent` | Every 6 h | `sync` | 1 | AniList/Kitsu | Current season + ongoing + recently ended; provider limitations apply |
-| `sync:season` | Daily 01:00 | `sync` | 1 | AniList/Kitsu | Current + next season; full detail |
-| `sync:full` | Weekly, gradual | `backfill` | 1 | AniList/Kitsu | Chunked by ID range; 7-day budget |
-| `sync:ratings` | Daily 05:00 | `sync` | 1 | AniList (if allowed) | Store external ratings separately |
+| `sync:airing` | Hourly at :05 | `sync` | 1 | Approved provider only | AniList excluded unless its written response permits this exact scheduled lookup and retention |
+| `sync:recent` | Every 6 h | `sync` | 1 | Approved provider only | Never use for AniList bulk/hot catalog refresh under the current plan |
+| `sync:season` | Daily 01:00 | `sync` | 1 | Approved provider only | Never use for AniList season-wide retrieval under the current plan |
+| `sync:full` | Weekly, gradual | `backfill` | 1 | Approved provider only | AniList is explicitly excluded from bulk/backfill jobs |
+| `sync:ratings` | Daily 05:00 | `sync` | 1 | Approved provider only | AniList ratings are not stored unless explicitly allowed |
 | `sync:streaming` | Daily 08:00 | `sync` | 1 | Manual/TMDB later | Only if a licensed source exists |
 
 **Why “recent updates” is fuzzy:** AniList does not expose a reliable “updated since” filter on all media. Define the job as “current season + ongoing + recently ended + top N popular”, not “all rows changed in the last 24 h”. For Kitsu, use its filters if documented; otherwise the same targeted refresh. Document the approximation in the admin UI.
@@ -149,7 +149,7 @@ If an incoming value conflicts with a curated field, log a `field_conflict` even
 
 | Provider | Limit | Our budget | Implementation |
 |---|---|---|---|
-| AniList | Official limit may be temporarily degraded; currently documented at 30/min | **20/min**, concurrency 1, burst 5, only after permission | Redis token bucket + response headers |
+| AniList | Official limit may be temporarily degraded; currently documented at 30/min | **20/min**, concurrency 1, no burst, only after exact use is cleared | Shared limiter + response headers |
 | MyAnimeList API v2 | No numeric limit documented in the plan | Start conservatively at **1 req/s**, concurrency 1; adjust only from official guidance | Redis token bucket; honor errors and backoff |
 | Jikan self-hosted | Set local limits; upstream MAL may still constrain freshness/indexing | Start at **1 req/s**, concurrency 1 pending validation | Separate queue and rate limiter |
 | ODbL | Local file | N/A | Stream from disk |
@@ -170,21 +170,22 @@ If an incoming value conflicts with a curated field, log a `field_conflict` even
 
 Provider-specific pagination, request fields, and throttles live inside that provider adapter. Do not use an undocumented bulk endpoint or scrape provider pages. Keep provider payloads out of Catalog and Schedule APIs.
 
-#### AniList (only after permission)
+#### AniList (only after the exact use is cleared)
 
-- One query per page of 50 media, request only the fields needed.
-- Use `Page(page, perPage)`; stop when `hasNextPage` is false.
-- Query by season for season jobs; by IDs for detail refresh.
-- Do not request user data unless the user has authorised OAuth.
+- Do not use pagination to mirror AniList media or schedules. Only make the narrow request that is covered by AniList's written clarification.
+- Use GraphQL variables and request only approved fields for the specific feature.
+- Do not request user data unless that feature is approved and the user has completed OAuth consent.
 - Handle `429` with `Retry-After`; handle `403` as “API unavailable” and pause the provider.
-- Persist the raw response hash for change detection, not the raw payload (avoid storing a mirror).
-- Log request count and remaining quota per run.
+- Do not persist raw payloads, hashes, external-ID mappings, or cache entries unless retention is explicitly approved.
+- Log only operational request counts/status/quota; do not log private user data, tokens, or response bodies.
 
 ---
 
 ## 6. Idempotent upserts
 
 ### 6.1 Upsert algorithm
+
+This persistence flow applies only to providers whose terms permit storage. AniList must not enter this path unless its response explicitly allows the exact fields and retention behavior.
 
 ```text
 for each normalized item:
@@ -316,6 +317,8 @@ export async function POST(req: Request) {
 - A weekly `reindex:search` rebuilds the projection in batches to catch drift.
 - Search synonyms are owned by Search Service.
 
+**Implemented local path:** Catalog claims `catalog.media.changed` and `catalog.taxonomy.changed` outbox rows using a lease. Media events fetch the latest document through Catalog's protected batch API and upsert it into Search; taxonomy events request an atomic full rebuild. Catalog sets `published_at` only after Search acknowledges the operation. Failures retain the row and retry with exponential backoff (capped at five minutes). Delivery is at-least-once; Search upserts compare Catalog `sourceUpdatedAt` so older concurrent deliveries cannot overwrite newer documents. A Search advisory lock serializes incremental upserts with full-index replacement. This first path uses private HTTP between the two services; it does not require another broker or server. The generic broker relay remains a later option for more consumers.
+
 ### 9.2 Optional Meilisearch backend
 
 - Outbox `INDEX` events enqueue `search:index` jobs.
@@ -365,7 +368,7 @@ export async function POST(req: Request) {
 | Failure | Impact | Recovery |
 |---|---|---|
 | AniList API down | No new provider data | Keep serving DB; circuit opens; alert; manual curation continues |
-| AniList permission denied | No AniList data at all | Stay on ODbL + manual; do not purge existing data unless required |
+| AniList use is denied or remains unclear | No API calls and no AniList data ingestion | Stay on ODbL + manual; purge any data if required by the terms or AniList's response |
 | Redis down | Queue stops; app reads still work | Restart; jobs are idempotent; re-enqueue |
 | Postgres down | Site errors | Restore from backup; app returns 503 |
 | Meilisearch down (later) | Search degraded | Fallback to Postgres FTS |

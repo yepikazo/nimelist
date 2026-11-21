@@ -37,7 +37,7 @@ export interface StreamingLink {
 }
 
 export interface ScheduleSlot {
-  id: number;
+  id: number | string;
   dayOfWeek: number;
   timeWib: string;
   baseEpisode: number;
@@ -52,7 +52,7 @@ export interface ScheduleOccurrence extends ScheduleSlot {
 }
 
 export interface MediaSummary {
-  id: number;
+  id: number | string;
   slug: string;
   title: string;
   titleRomaji: string;

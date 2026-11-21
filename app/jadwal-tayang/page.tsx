@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import { getTodayDate } from "@/lib/repository";
+import { getJakartaToday } from "@/lib/service-clients";
 
-export default async function ScheduleIndexPage() {
-  const today = await getTodayDate();
+export default function ScheduleIndexPage() {
+  const today = getJakartaToday();
   redirect(`/jadwal-tayang/${today}`);
 }

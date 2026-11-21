@@ -76,7 +76,7 @@ Answer these before or during Phase 0. Defaults are in brackets.
 
 | Date | Decision | Rationale | Status |
 |---|---|---|---|
-| 9 Nov 2026 | Request written AniList permission; no ingestion until approved | ToS prohibits storage and competing trackers | Accepted |
+| 21 Nov 2026 | Ask AniList to clarify the exact feature and retention; no API calls until clear | Terms prohibit storage/hoarding and competing non-complementary trackers; Nimelist's fit is unresolved | Accepted |
 | 9 Nov 2026 | Launch on ODbL seed + manual curation | AniList may not respond in time; manual data is a differentiator | Accepted |
 | 9 Nov 2026 | 4–6 week schedule MVP, no accounts at public launch | Team capacity and focus | Accepted |
 | 9 Nov 2026 | 2–3 person team | Realistic capacity | Accepted |
@@ -98,7 +98,7 @@ Answer these before or during Phase 0. Defaults are in brackets.
 
 | If this happens | Then |
 |---|---|
-| AniList grants written permission and the proposed use is within scope | Enable the reviewed provider adapter; add sync jobs; keep manual overrides; update privacy/attribution |
+| AniList confirms in writing that a specific proposed feature is permitted | Implement only that feature and its approved data handling; do not infer approval for bulk sync, storage, or OAuth writes |
 | AniList denies permission | Stay on ODbL + manual; remove any AniList data; evaluate licensed provider |
 | Server specifications or private network differ from planning assumptions | Reassign service containers, resize hosts, and verify private-only reachability before deployment |
 | Search complaints or measured relevance/latency issue | Add Meilisearch behind Search Service API |

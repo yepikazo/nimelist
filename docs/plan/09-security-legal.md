@@ -296,19 +296,19 @@ Processors may store data outside Indonesia (Cloudflare, Sentry, R2, email, GitH
 
 ### 6.1 AniList
 
-Verified 9 Nov 2026 at <https://docs.anilist.co/guide/terms-of-use> and <https://docs.anilist.co/guide/rate-limiting>.
+Rechecked 21 Nov 2026 at <https://docs.anilist.co/guide/terms-of-use> and <https://docs.anilist.co/guide/rate-limiting>.
 
 | Rule | Implication |
 |---|---|
-| Free for non-commercial use; commercial use has a revenue threshold (currently stated as $150/month) and a licence above it | Ads/affiliate revenue counts as commercial; monitor threshold |
-| Using the API as a backup or data storage service is prohibited | Our “store everything in Postgres” model needs written permission |
+| Free for non-commercial usage; commercial applications/services under $150/month revenue may use it free, while higher revenue requires a commercial licence | The revenue threshold does not override the API's other use restrictions |
+| Using the API as a backup or data storage service is prohibited | Do not store API fields or mappings unless AniList explicitly confirms the exact retention behavior is allowed; otherwise use request-time data only if separately cleared |
 | Hoarding/mass collection is prohibited | No bulk mirror; request only what the catalog needs |
-| Use in competing anime list/tracker services is prohibited | Nimelist is a tracker; needs explicit authorisation |
+| Use in competing non-complementary anime list/tracker services is prohibited | Whether Nimelist's catalog/schedule is covered is unresolved; do not assume it is allowed or that OAuth/attribution changes the answer |
 | Naming guidelines | If “AniList” is in the name, mark “UNOFFICIAL”/“for AniList”; do not use the name alone |
 | Rate limit 90/min normal, **30/min during degraded state**; burst limiter; no raises currently | Budget 20/min, concurrency 1 |
 | API may be suspended or return 403 | Circuit breaker, graceful degradation |
 
-**Action:** written permission before ingestion. If denied, use ODbL + manual curation and do not store AniList data. If granted, document scope, attribution, retention, and kill switch.
+**Action:** ask AniList to clarify whether the exact proposed feature is permitted and what data handling it allows. No live calls or persistent import while unclear. If the response is negative or ambiguous, keep AniList disabled and use ODbL + manual curation. Record the accepted scope before implementation.
 
 ### 6.2 Kitsu
 
@@ -473,7 +473,7 @@ Fill these before launch; do not leave placeholders.
 
 Do not publicly launch until all are true:
 
-- [ ] Written AniList permission obtained **or** AniList provider disabled and no AniList data stored.
+- [ ] Exact AniList feature and data handling clarified in writing **or** provider remains disabled and no AniList data is stored.
 - [ ] ODbL attribution page + licence notice published.
 - [ ] Image usage policy and takedown process live.
 - [ ] Every published synopsis is original/edited, not a machine translation.

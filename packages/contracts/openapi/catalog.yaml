@@ -5,6 +5,23 @@ info:
 servers:
   - url: http://catalog:4101
 paths:
+  /v1/taxonomy:
+    get:
+      operationId: getCatalogTaxonomy
+      summary: Ambil genre, studio, platform, dan musim untuk filter katalog.
+      responses:
+        "200":
+          description: Opsi filter beserta jumlah media publik.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [genres, studios, platforms, seasons]
+                properties:
+                  genres: { type: array, items: { type: object } }
+                  studios: { type: array, items: { type: object } }
+                  platforms: { type: array, items: { type: object } }
+                  seasons: { type: array, items: { type: object } }
   /v1/media:
     get:
       operationId: listMedia
@@ -22,6 +39,21 @@ paths:
         - name: year
           in: query
           schema: { type: integer, minimum: 1900, maximum: 2100 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [FINISHED, RELEASING, NOT_YET_RELEASED, CANCELLED, HIATUS, UNKNOWN] }
+        - name: format
+          in: query
+          schema: { type: string, enum: [TV, TV_SHORT, MOVIE, SPECIAL, OVA, ONA, MUSIC, UNKNOWN] }
+        - name: platform
+          in: query
+          schema: { type: string }
+        - name: contentStatus
+          in: query
+          schema: { type: string, enum: [MISSING, DRAFT, REVIEWED, PUBLISHED, REJECTED] }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [populer, skor, judul, terbaru], default: populer }
         - name: page
           in: query
           schema: { type: integer, minimum: 1, default: 1 }
@@ -108,6 +140,34 @@ paths:
                 properties:
                   items: { type: array, items: { $ref: "#/components/schemas/InternalMediaSummary" } }
         "401": { $ref: "#/components/responses/Unauthorized" }
+  /internal/v1/search-documents:
+    get:
+      operationId: listSearchProjectionSourceDocuments
+      summary: Ambil dokumen sumber Search dengan pagination.
+      security: [{ serviceToken: [] }]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 200 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: mediaId
+          in: query
+          description: Jika ada, hanya ambil satu dokumen media dengan UUID tersebut.
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Dokumen sumber untuk proyeksi Search, termasuk flag adult agar dapat difilter.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextOffset]
+                properties:
+                  items: { type: array, items: { type: object } }
+                  nextOffset: { type: [integer, "null"] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
   /internal/v1/taxonomy/import:
     post:
       operationId: importCatalogTaxonomy
@@ -153,20 +213,35 @@ components:
         titleRomaji: { type: string }
         titleEnglish: { type: [string, "null"] }
         titleId: { type: [string, "null"] }
+        synopsisId: { type: [string, "null"] }
         format: { type: string }
         status: { type: string }
         season: { type: [string, "null"] }
         seasonYear: { type: [integer, "null"] }
+        episodes: { type: [integer, "null"] }
+        durationMinutes: { type: [integer, "null"] }
+        scoreAvg: { type: [number, "null"] }
+        popularity: { type: integer }
         coverUrl: { type: [string, "null"], format: uri }
+        isAdult: { type: boolean }
+        contentStatus: { type: string }
+        genres: { type: array, items: { type: object } }
+        studios: { type: array, items: { type: object } }
+        platforms: { type: array, items: { type: object } }
     MediaDetail:
       allOf:
         - $ref: "#/components/schemas/MediaSummary"
         - type: object
           properties:
             synopsisId: { type: [string, "null"] }
-            genres: { type: array, items: { type: string } }
-            studios: { type: array, items: { type: string } }
-            contentStatus: { type: string }
+            titleNative: { type: [string, "null"] }
+            synonyms: { type: array, items: { type: string } }
+            source: { type: string }
+            sourceUrl: { type: [string, "null"], format: uri }
+            updatedAt: { type: string, format: date-time }
+            genres: { type: array, items: { type: object } }
+            studios: { type: array, items: { type: object } }
+            platforms: { type: array, items: { type: object } }
             platformLinks:
               type: array
               items:

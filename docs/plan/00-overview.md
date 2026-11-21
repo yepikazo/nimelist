@@ -69,7 +69,7 @@ These are the answers from the planning questions, plus the assumptions needed t
 
 | Decision | Choice | Consequence |
 |---|---|---|
-| Data source | **ODbL seed + manual curation; provider adapters only after terms review** | Jikan public API was discontinued 1 Oct 2026. Do not depend on it. AniList remains disabled pending written permission. |
+| Data source | **ODbL seed + manual curation; provider adapters only after terms review** | Jikan public API was discontinued 1 Oct 2026. Do not depend on it. AniList remains disabled until the exact feature and data handling are clarified in writing. |
 | Team | **2–3 people** | One full-stack dev, one frontend/design, one part-time curator/editor |
 | Launch shape | **4–6 week schedule MVP** | Public catalog + schedule + legal streaming + SEO. No accounts at public launch. |
 | Hosting | **Three servers** | Server 1 web edge; Server 2 private APIs/data; Server 3 ingestion and operations. See `08-architecture-infra.md`. |
@@ -163,6 +163,7 @@ Core rules: **web requests never depend on provider availability; provider acces
 | `09-security-legal.md` | Threat model, API terms, copyright, UU PDP/PSE |
 | `10-roadmap.md` | Phased tasks, checkboxes, dependencies, estimates |
 | `11-risks-open-questions.md` | Risks, mitigations, open questions, triggers |
+| `12-anilist-integration.md` | AniList permission gate, feature paths, implementation sequence, OAuth and rate-limit controls |
 | `../implementation-checklist.md` | Implementation status, completed work, and remaining service/deployment tasks |
 
 ---
@@ -202,8 +203,8 @@ Full register: `11-risks-open-questions.md`.
 
 | Source | What was verified | URL |
 |---|---|---|
-| AniList API Terms of Use | No backup/data storage, no hoarding, no competing tracker; commercial under $150/mo free, above needs licence | https://docs.anilist.co/guide/terms-of-use |
-| AniList rate limiting | 90/min normal, **30/min during current degraded state**, burst limiter, no rate-limit raises currently | https://docs.anilist.co/guide/rate-limiting |
+| AniList API Terms of Use | No backup/data storage, no hoarding, restrictions on competing list/tracker services; commercial under $150/mo free, above needs licence | https://docs.anilist.co/guide/terms-of-use |
+| AniList rate limiting | 90/min normal, **30/min during current degraded state**, burst limiter, no rate-limit raises currently (rechecked 21 Nov 2026) | https://docs.anilist.co/guide/rate-limiting |
 | AniList considerations | API may be suspended; 403; adult content caveats | https://docs.anilist.co/guide/considerations |
 | Kitsu Terms of Use | No commercial use of Kitsu content separate from Kitsu services; API use subject to separate terms on request | https://kitsu.io/terms |
 | Kitsu API docs | Public GETs, OAuth for user data, no published hard rate limit | https://kitsu.docs.apiary.io/ |

@@ -1,0 +1,65 @@
+name: nimelist-server1
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?Set NEXT_PUBLIC_SITE_URL in .env.server1}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NIMELIST_DB_PATH: /tmp/nimelist.db
+      CATALOG_SERVICE_URL: ${CATALOG_SERVICE_URL:?Set private Catalog URL in .env.server1}
+      SCHEDULE_SERVICE_URL: ${SCHEDULE_SERVICE_URL:?Set private Schedule URL in .env.server1}
+      SEARCH_SERVICE_URL: ${SEARCH_SERVICE_URL:?Set private Search URL in .env.server1}
+    mem_limit: 768m
+    cpus: 1.5
+    pids_limit: 128
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    networks: [web-edge]
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - server1-caddy-data:/data
+      - server1-caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    networks: [web-edge]
+    logging: *default-logging
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run", "--token", "${CLOUDFLARED_TUNNEL_TOKEN:?Set CLOUDFLARED_TUNNEL_TOKEN in .env.server1}"]
+    depends_on:
+      caddy:
+        condition: service_started
+    networks: [web-edge]
+    logging: *default-logging
+
+networks:
+  web-edge:
+
+volumes:
+  server1-caddy-data:
+    name: nimelist-server1-caddy-data
+  server1-caddy-config:
+    name: nimelist-server1-caddy-config

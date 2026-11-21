@@ -1,6 +1,6 @@
 # 08 — Microservices Architecture and Infrastructure
 
-**Status:** Target architecture for the required three-server deployment. This is a design; the current beta is still a Next.js + SQLite monolith.
+**Status:** Target architecture for the required three-server deployment. Core Next.js routes now use Catalog, Schedule, and Search APIs. Server 2 runs locally; initial Server 1/3 Compose templates exist, but production networking and deployment are pending.
 
 ## 1. Architecture principles
 
@@ -17,9 +17,9 @@
 | Service | Owns | API / events | Initial implementation |
 |---|---|---|---|
 | **Web (Next.js)** | UI, SEO rendering, BFF composition; no domain database | Calls internal Catalog, Schedule, Search APIs | Existing `app/`; replace direct repository access progressively |
-| **Catalog Service** | Anime metadata, aliases, genres, studios, provenance and editorial synopsis state | REST read/write API; emits catalog change events | Node.js API, PostgreSQL migrations, normalized taxonomy, and outbox exist; DB provisioning and event publishing pending |
+| **Catalog Service** | Anime metadata, aliases, genres, studios, provenance and editorial synopsis state | REST read/write API; emits catalog change events | Node.js API, PostgreSQL migrations, normalized taxonomy, transactional outbox, and at-least-once Search relay exist; broker delivery remains pending |
 | **Schedule Service** | Recurring slots, dated occurrences, WIB confidence/source and verification history | REST API; emits `schedule.changed` | Node.js API, owned migration, and outbox exist; DB provisioning and event publishing pending |
-| **Search Service** | Search API, query normalization, synonyms and search index | REST search API; consumes catalog/schedule change events | Node.js ESM scaffold exists; index backend/API pending |
+| **Search Service** | Search API, query normalization, synonyms and search index | REST search API; consumes catalog change events | Node.js API with Search-owned PostgreSQL FTS/trigram projection, protected upsert and atomic rebuild from Catalog API; Catalog relay delivers media/taxonomy updates |
 | **Ingestion Service** | Provider adapters, import cursors, sync runs, retry policy and normalized DTOs | Worker jobs; calls Catalog/Schedule APIs; emits status events | Node.js ESM scaffold exists; worker, scheduler, and providers pending |
 | **Curation/Admin** | Admin workflow and audit of curation actions; does not own catalog/schedule rows | Private UI/API calls Catalog and Schedule APIs | Start as authenticated internal routes; split only if independent deployment is useful or required |
 
@@ -36,6 +36,10 @@ Use one PostgreSQL server initially, but create separate databases or schemas, r
 | **Server 3 — Integrations and operations** | Ingestion Service, provider adapters, worker/scheduler, secured Curation/Admin, deploy runner and local dashboards | No public app ports; egress to approved providers; admin through VPN/Cloudflare Access | 2–4 vCPU / 4–8 GB RAM / 60 GB disk |
 
 \*These are planning estimates, not measured requirements. Measure actual memory, storage, and traffic before selecting plans. If self-hosting Jikan's full stack, size Server 3 separately: the official container setup includes MongoDB, Typesense, and Redis and requires running indexers before it has data. Jikan's public API was discontinued on 1 Oct 2026, so public `api.jikan.moe` is not a dependency. [Jikan shutdown notice](https://github.com/jikan-me/jikan-rest/issues/613), [container guide](https://github.com/jikan-me/jikan-rest/blob/master/container_usage.md)
+
+### Local Server 2 profile
+
+The target Proxmox VMs have 2 vCPU, 2 GiB RAM, and 10 GB disk each. `deploy/compose.server2.yml` now caps containers at about 1.3 GiB combined and binds published ports to `127.0.0.1` by default; production sets API bindings to Server 2's private IP while PostgreSQL/Redis remain on localhost. This is a constrained starting point and must be observed for OOM/disk pressure. It runs PostgreSQL, Redis, Catalog, Schedule, and Search with a Search-owned PostgreSQL FTS/trigram projection. Redis is reserved for future queue work.
 
 ## 4. Request and data flows
 
@@ -78,7 +82,7 @@ Provider access is a replaceable adapter, not a direct dependency of page render
 | anime-offline-database | Initial catalog seed | Keep ODbL/DbCL attribution and share-alike obligations; check archived-data freshness |
 | Manual curation | Indonesian synopsis, WIB schedule, legal platform references | Record source, editor, confidence, and last-verified timestamp |
 | MyAnimeList API v2 | Candidate metadata/import provider | Register a client and review the API agreement before storing or redistributing data; no scraping |
-| AniList | Candidate metadata provider | Disabled until written permission; its terms prohibit data hoarding/storage and competing tracker use |
+| AniList | Candidate, feature-specific integration | Disabled until AniList clarifies that the exact use and data handling are allowed; no bulk sync or persistent import under the current plan |
 | Self-hosted Jikan | Optional adapter only | Separate technical/legal review; public instance is discontinued; private setup requires indexing and operational maintenance |
 
 The sync service should tolerate no provider being configured. Catalog pages remain served from Nimelist's database and manual curation.
