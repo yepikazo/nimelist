@@ -1,0 +1,257 @@
+name: nimelist-server2
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: nimelist_admin
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_ADMIN_PASSWORD in .env.server2}
+      CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD:?Set CATALOG_DB_PASSWORD in .env.server2}
+      SCHEDULE_DB_PASSWORD: ${SCHEDULE_DB_PASSWORD:?Set SCHEDULE_DB_PASSWORD in .env.server2}
+      SEARCH_DB_PASSWORD: ${SEARCH_DB_PASSWORD:?Set SEARCH_DB_PASSWORD in .env.server2}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - max_connections=40
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - max_wal_size=512MB
+    shm_size: 128mb
+    mem_limit: 768m
+    cpus: 1.4
+    pids_limit: 128
+    ports:
+      - 127.0.0.1:${POSTGRES_HOST_PORT:-55432}:5432
+    volumes:
+      - server2-postgres:/var/lib/postgresql/data
+      - ./server2/init/01-create-databases.sh:/docker-entrypoint-initdb.d/01-create-databases.sh:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"'
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [server2-private]
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "2"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env.server2}
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 64mb
+      - --maxmemory-policy
+      - noeviction
+      - --requirepass
+      - ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env.server2}
+    mem_limit: 128m
+    cpus: 0.3
+    pids_limit: 64
+    ports:
+      - 127.0.0.1:${REDIS_HOST_PORT:-56379}:6379
+    volumes:
+      - server2-redis:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'REDISCLI_AUTH="$${REDIS_PASSWORD}" redis-cli ping | grep -q PONG'
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [server2-private]
+    logging: *default-logging
+
+  catalog:
+    build:
+      context: ..
+      dockerfile: services/catalog/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4101
+      NODE_OPTIONS: --max-old-space-size=192
+      DATABASE_URL: postgresql://nimelist_catalog:${CATALOG_DB_PASSWORD:?Set CATALOG_DB_PASSWORD in .env.server2}@postgres:5432/nimelist_catalog
+      DB_POOL_MAX: 5
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in .env.server2}
+    mem_limit: 320m
+    cpus: 0.5
+    pids_limit: 64
+    ports:
+      - 127.0.0.1:${CATALOG_HOST_PORT:-4101}:4101
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4101/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      retries: 12
+      start_period: 10s
+    networks: [server2-private]
+    logging: *default-logging
+
+  schedule:
+    build:
+      context: ..
+      dockerfile: services/schedule/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4102
+      NODE_OPTIONS: --max-old-space-size=192
+      DATABASE_URL: postgresql://nimelist_schedule:${SCHEDULE_DB_PASSWORD:?Set SCHEDULE_DB_PASSWORD in .env.server2}@postgres:5432/nimelist_schedule
+      DB_POOL_MAX: 5
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in .env.server2}
+      CATALOG_SERVICE_URL: http://catalog:4101
+    mem_limit: 320m
+    cpus: 0.5
+    pids_limit: 64
+    ports:
+      - 127.0.0.1:${SCHEDULE_HOST_PORT:-4102}:4102
+    depends_on:
+      postgres:
+        condition: service_healthy
+      catalog:
+        condition: service_started
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4102/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      retries: 12
+      start_period: 10s
+    networks: [server2-private]
+    logging: *default-logging
+
+  search:
+    build:
+      context: ..
+      dockerfile: services/search/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4103
+      NODE_OPTIONS: --max-old-space-size=128
+      DATABASE_URL: postgresql://nimelist_search:${SEARCH_DB_PASSWORD:?Set SEARCH_DB_PASSWORD in .env.server2}@postgres:5432/nimelist_search
+      DB_POOL_MAX: 5
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in .env.server2}
+      CATALOG_SERVICE_URL: http://catalog:4101
+    mem_limit: 192m
+    cpus: 0.3
+    pids_limit: 48
+    ports:
+      - 127.0.0.1:${SEARCH_HOST_PORT:-4103}:4103
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4103/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      retries: 12
+      start_period: 10s
+    networks: [server2-private]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      catalog:
+        condition: service_healthy
+    logging: *default-logging
+
+  search-migrate:
+    build:
+      context: ..
+      dockerfile: services/search/Dockerfile
+    profiles: [init]
+    command: [node, services/search/src/migrate.mjs]
+    environment:
+      DATABASE_URL: postgresql://nimelist_search:${SEARCH_DB_PASSWORD:?Set SEARCH_DB_PASSWORD in .env.server2}@postgres:5432/nimelist_search
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [server2-private]
+    restart: "no"
+
+  search-reindex:
+    build:
+      context: ..
+      dockerfile: services/search/Dockerfile
+    profiles: [init]
+    command: [node, -e, "fetch('http://search:4103/internal/v1/reindex',{method:'POST',headers:{authorization:'Bearer '+process.env.INTERNAL_API_TOKEN}}).then(async r=>{console.log(await r.text());if(!r.ok)process.exit(1)}).catch(e=>{console.error(e);process.exit(1)})"]
+    environment:
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in .env.server2}
+    depends_on:
+      search:
+        condition: service_healthy
+      catalog:
+        condition: service_healthy
+    networks: [server2-private]
+    restart: "no"
+
+  catalog-migrate:
+    build:
+      context: ..
+      dockerfile: services/catalog/Dockerfile
+    profiles: [init]
+    command: [node, services/catalog/src/migrate.mjs]
+    environment:
+      DATABASE_URL: postgresql://nimelist_catalog:${CATALOG_DB_PASSWORD:?Set CATALOG_DB_PASSWORD in .env.server2}@postgres:5432/nimelist_catalog
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [server2-private]
+    restart: "no"
+
+  schedule-migrate:
+    build:
+      context: ..
+      dockerfile: services/schedule/Dockerfile
+    profiles: [init]
+    command: [node, services/schedule/src/migrate.mjs]
+    environment:
+      DATABASE_URL: postgresql://nimelist_schedule:${SCHEDULE_DB_PASSWORD:?Set SCHEDULE_DB_PASSWORD in .env.server2}@postgres:5432/nimelist_schedule
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [server2-private]
+    restart: "no"
+
+  seed-import:
+    image: node:24-alpine
+    profiles: [init]
+    working_dir: /app
+    command: [node, /app/import-seed-to-catalog.mjs, --apply, --seed=/seed/seed.json]
+    environment:
+      CATALOG_SERVICE_URL: http://catalog:4101
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in .env.server2}
+    volumes:
+      - ../scripts/import-seed-to-catalog.mjs:/app/import-seed-to-catalog.mjs:ro
+      - ../data/seed.json:/seed/seed.json:ro
+    depends_on:
+      catalog:
+        condition: service_healthy
+    networks: [server2-private]
+    restart: "no"
+
+networks:
+  server2-private:
+    # Keep host-published loopback ports reachable; host bindings remain 127.0.0.1 only.
+
+volumes:
+  server2-postgres:
+    name: nimelist-server2-postgres
+  server2-redis:
+    name: nimelist-server2-redis

@@ -321,9 +321,9 @@ async function importMedia(request) {
           synonyms, genres, studios, is_adult, content_status, curated_fields, source, source_url, provenance
         ) VALUES (
           $1, $2, $3, $4, $5, $6, COALESCE($7, 'UNKNOWN'), COALESCE($8, 'UNKNOWN'), $9,
-          $10, $11, $12, $13, COALESCE($14, 0), $15, $16, COALESCE($17, '{}'),
-          COALESCE($18, '{}'), COALESCE($19, '{}'), COALESCE($20, false), COALESCE($21, 'MISSING'),
-          $22, $23, $24, jsonb_build_object($23, jsonb_build_object('externalId', $25, 'sourceUrl', $24))
+          $10, $11, $12, $13, COALESCE($14, 0), $15, $16, COALESCE($17::text[], '{}'::text[]),
+          COALESCE($18::text[], '{}'::text[]), COALESCE($19::text[], '{}'::text[]), COALESCE($20, false), COALESCE($21, 'MISSING'),
+          $22, $23, $24, jsonb_build_object($23::text, jsonb_build_object('externalId', $25::text, 'sourceUrl', $24::text))
         ) RETURNING id`,
         [slug, body.titleRomaji, body.titleEnglish, body.titleNative, body.titleId, body.synopsisId,
           body.format, body.status, body.season, body.seasonYear, body.episodes, body.durationMinutes,
@@ -515,8 +515,31 @@ async function getInternalMedia(request, url) {
   return { status: 200, body: { items: result.rows.map((row) => ({ ...row, id: String(row.id) })) } };
 }
 
+async function getInternalSearchDocuments(request, url) {
+  requireServiceToken(request);
+  const limit = integerParam(url.searchParams.get("limit"), 200, 1, 200);
+  const offset = integerParam(url.searchParams.get("offset"), 0, 0, 1_000_000);
+  const result = await requireDatabase().query(`
+    SELECT m.id AS "mediaId", m.slug, m.title_romaji AS "titleRomaji", m.title_english AS "titleEnglish",
+      m.title_native AS "titleNative", m.title_id AS "titleId", m.synonyms,
+      COALESCE((SELECT array_agg(DISTINCT value) FROM (
+        SELECT g.name AS value FROM media_genre mg JOIN catalog_genre g ON g.slug = mg.genre_slug WHERE mg.media_id=m.id
+        UNION SELECT g.name_id FROM media_genre mg JOIN catalog_genre g ON g.slug=mg.genre_slug WHERE mg.media_id=m.id AND g.name_id IS NOT NULL
+      ) names), '{}'::text[]) AS genres,
+      COALESCE((SELECT array_agg(DISTINCT value) FROM (
+        SELECT s.name AS value FROM media_studio ms JOIN catalog_studio s ON s.slug=ms.studio_slug WHERE ms.media_id=m.id
+        UNION SELECT s.name_native FROM media_studio ms JOIN catalog_studio s ON s.slug=ms.studio_slug WHERE ms.media_id=m.id AND s.name_native IS NOT NULL
+      ) names), '{}'::text[]) AS studios,
+      COALESCE((SELECT array_agg(DISTINCT l.platform_slug) FROM media_platform_link l WHERE l.media_id=m.id), '{}'::text[]) AS platforms,
+      m.format, m.status, m.season, m.season_year AS "seasonYear", m.score_avg AS "scoreAvg",
+      m.popularity, m.cover_url AS "coverUrl", m.is_adult AS "isAdult"
+    FROM media m ORDER BY m.id LIMIT $1 OFFSET $2`, [limit, offset]);
+  return { status: 200, body: { items: result.rows, nextOffset: result.rowCount === limit ? offset + result.rowCount : null } };
+}
+
 async function handleRequest(request, url) {
   if (request.method === "GET" && url.pathname === "/v1/media") return listMedia(url);
+  if (request.method === "GET" && url.pathname === "/internal/v1/search-documents") return getInternalSearchDocuments(request, url);
   if (request.method === "GET" && url.pathname === "/internal/v1/media") return getInternalMedia(request, url);
   if (request.method === "POST" && url.pathname === "/internal/v1/media/import") return importMedia(request);
   if (request.method === "POST" && url.pathname === "/internal/v1/taxonomy/import") return importTaxonomy(request);

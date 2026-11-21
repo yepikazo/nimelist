@@ -19,7 +19,7 @@
 | **Web (Next.js)** | UI, SEO rendering, BFF composition; no domain database | Calls internal Catalog, Schedule, Search APIs | Existing `app/`; replace direct repository access progressively |
 | **Catalog Service** | Anime metadata, aliases, genres, studios, provenance and editorial synopsis state | REST read/write API; emits catalog change events | Node.js API, PostgreSQL migrations, normalized taxonomy, and outbox exist; DB provisioning and event publishing pending |
 | **Schedule Service** | Recurring slots, dated occurrences, WIB confidence/source and verification history | REST API; emits `schedule.changed` | Node.js API, owned migration, and outbox exist; DB provisioning and event publishing pending |
-| **Search Service** | Search API, query normalization, synonyms and search index | REST search API; consumes catalog/schedule change events | Node.js ESM scaffold exists; index backend/API pending |
+| **Search Service** | Search API, query normalization, synonyms and search index | REST search API; consumes catalog change events | Node.js API with Search-owned PostgreSQL FTS/trigram projection, protected upsert and full rebuild from Catalog API; event relay remains pending |
 | **Ingestion Service** | Provider adapters, import cursors, sync runs, retry policy and normalized DTOs | Worker jobs; calls Catalog/Schedule APIs; emits status events | Node.js ESM scaffold exists; worker, scheduler, and providers pending |
 | **Curation/Admin** | Admin workflow and audit of curation actions; does not own catalog/schedule rows | Private UI/API calls Catalog and Schedule APIs | Start as authenticated internal routes; split only if independent deployment is useful or required |
 
@@ -36,6 +36,10 @@ Use one PostgreSQL server initially, but create separate databases or schemas, r
 | **Server 3 — Integrations and operations** | Ingestion Service, provider adapters, worker/scheduler, secured Curation/Admin, deploy runner and local dashboards | No public app ports; egress to approved providers; admin through VPN/Cloudflare Access | 2–4 vCPU / 4–8 GB RAM / 60 GB disk |
 
 \*These are planning estimates, not measured requirements. Measure actual memory, storage, and traffic before selecting plans. If self-hosting Jikan's full stack, size Server 3 separately: the official container setup includes MongoDB, Typesense, and Redis and requires running indexers before it has data. Jikan's public API was discontinued on 1 Oct 2026, so public `api.jikan.moe` is not a dependency. [Jikan shutdown notice](https://github.com/jikan-me/jikan-rest/issues/613), [container guide](https://github.com/jikan-me/jikan-rest/blob/master/container_usage.md)
+
+### Local Server 2 profile
+
+The laptop available for local development reports 4 logical CPUs, 7.6 GiB RAM, and a 38 GiB filesystem with about 9.7 GiB free at the time of setup. This suits a constrained development profile, not the production sizing above. `deploy/compose.server2.yml` caps all containers at about 1.7 GiB combined and binds published ports to `127.0.0.1`. Docker services share a bridge network so those host port mappings work; container egress is available. The profile runs PostgreSQL, Redis, Catalog, Schedule, and Search with a Search-owned PostgreSQL FTS/trigram projection. Redis is reserved for future queue work.
 
 ## 4. Request and data flows
 

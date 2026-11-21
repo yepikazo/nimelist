@@ -79,6 +79,23 @@ npm run start:catalog
 
 Untuk Schedule, gunakan database dan role miliknya sendiri pada `DATABASE_URL`, set `CATALOG_SERVICE_URL` (default `http://127.0.0.1:4101`), lalu jalankan `npm run migrate --workspace=@nimelist/schedule-service` dan `npm run start:schedule`. Jangan gunakan satu database/role bersama untuk kedua service.
 
+### Server 2 lokal dengan Docker
+
+Profil Docker Server 2 untuk laptop ini ada di `deploy/compose.server2.yml`. Batas resource-nya sekitar 1.7 GiB RAM untuk PostgreSQL, Redis, Catalog, Schedule, dan Search Service. Port dipublikasikan ke localhost saja. Container memakai bridge network dan dapat melakukan koneksi keluar.
+
+```bash
+cp deploy/server2.env.example .env.server2
+# Ganti seluruh nilai replace_with_* dengan secret acak sebelum menjalankan.
+docker compose --env-file .env.server2 -f deploy/compose.server2.yml up -d --build
+docker compose --env-file .env.server2 -f deploy/compose.server2.yml --profile init run --rm catalog-migrate
+docker compose --env-file .env.server2 -f deploy/compose.server2.yml --profile init run --rm schedule-migrate
+docker compose --env-file .env.server2 -f deploy/compose.server2.yml --profile init run --rm seed-import
+docker compose --env-file .env.server2 -f deploy/compose.server2.yml --profile init run --rm search-migrate
+docker compose --env-file .env.server2 -f deploy/compose.server2.yml --profile init run --rm search-reindex
+```
+
+PostgreSQL host tersedia di `127.0.0.1:55432`; API lokal di `4101`–`4103`; Redis di `127.0.0.1:56379`. Untuk menghentikan container tanpa menghapus isinya, jalankan `docker compose --env-file .env.server2 -f deploy/compose.server2.yml down`. Jangan tambahkan `-v` kecuali ingin menghapus database dan volume Redis.
+
 Importer seed Catalog mengirim metadata media, taxonomy, dan tautan pencarian platform melalui API internal, mempertahankan slug seed, dan berjalan dalam mode pratinjau secara default. Tautan dari seed tetap berstatus `SEARCH_ONLY`, bukan bukti bahwa judul tersedia di platform. Data jadwal demo tidak diimpor; jadwal dimiliki Schedule Service:
 
 ```bash
@@ -87,6 +104,8 @@ INTERNAL_API_TOKEN='rahasia-random-minimal-32-karakter' CATALOG_SERVICE_URL='htt
 ```
 
 Perintah kedua memerlukan Catalog berjalan, database sudah dimigrasikan, dan token yang sama dengan Catalog. Importer mengirim batch kecil secara idempoten; ia tidak menulis langsung ke database.
+
+Search memiliki proyeksi PostgreSQL FTS/trigram sendiri. Migrasi Search dijalankan setelah stack hidup; `search-reindex` membaca batch melalui endpoint internal Catalog lalu mengganti indeks secara atomik. Endpoint pencarian lokal: `GET http://127.0.0.1:4103/v1/search?q=frieren`. Upsert dokumen Search hanya untuk integrasi internal yang membawa bearer token.
 
 ## Rute utama
 

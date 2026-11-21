@@ -1,7 +1,7 @@
 # Nimelist — Implementation Checklist
 
 **Updated:** 21 November 2026  
-**Status:** Foundation plus first Catalog and Schedule API/database slice implemented; server provisioning and integration remain pending.
+**Status:** Server 2 local stack and initial Search API/projection implemented; event relay, web integration, and server provisioning remain pending.
 
 This checklist separates completed design work from runnable scaffolding and production work. A health endpoint means a process starts; it does not mean that the service's business functions are implemented.
 
@@ -22,10 +22,13 @@ This checklist separates completed design work from runnable scaffolding and pro
 - [x] Added the shared HTTP runtime with `/healthz` and `/v1/info`.
 - [x] Added independent Node service packages for Catalog, Schedule, Search, and Ingestion.
 - [x] Added one Dockerfile per service.
+- [x] Added a resource-capped local Server 2 Compose profile sized for this laptop, with loopback-only host ports.
+- [x] Added isolated PostgreSQL databases/roles for Catalog, Schedule, and Search plus persistent Redis for future queue work.
 - [x] Added OpenAPI 3.1 contracts for the four services.
 - [x] Added versioned JSON Schema contracts for Catalog and Schedule change events.
 - [x] Added root scripts to start each service individually.
 - [x] Added Catalog and Schedule PostgreSQL migrations, connection pools, and migration commands.
+- [x] Added a Search-owned PostgreSQL FTS/trigram projection, migration, readiness check, query API, and internal upsert/rebuild routes.
 - [x] Added normalized Catalog genre, studio, platform, media relation, and platform-link tables.
 - [x] Implemented public Catalog list/detail APIs and authenticated, idempotent internal import.
 - [x] Implemented authenticated batch Catalog summaries for service-to-service enrichment.
@@ -39,11 +42,13 @@ This checklist separates completed design work from runnable scaffolding and pro
 
 ## Current implementation limits
 
-- [ ] Provision PostgreSQL and set independent `DATABASE_URL` values for Catalog and Schedule; APIs return not-ready until configured.
-- [ ] Configure the same secret (`INTERNAL_API_TOKEN`, at least 32 characters) for authenticated service-to-service calls.
-- [ ] Run migrations and perform database-backed API verification after connection details are available.
+- [ ] Provision production PostgreSQL and configure separate Catalog, Schedule, and Search database credentials.
+- [x] Start the local Server 2 containers, apply Catalog/Schedule migrations, and import all 91 media seed records (plus taxonomy and search-only platform links).
+- [x] Configure a local shared `INTERNAL_API_TOKEN` for Catalog/Search internal calls.
+- [x] Apply local Search migration, rebuild 91 documents from Catalog API, and verify exact-title plus typo queries.
+- [ ] Configure production secrets and verify deployed service APIs against production database connections.
 - [ ] Add contract validation/generation in CI.
-- [ ] Build and launch service images to verify Docker build context and runtime behavior.
+- [x] Build and launch the local Server 2 images; PostgreSQL, Redis, Catalog, Schedule, and Search report healthy.
 
 ## Phase 1 — Core service APIs
 
@@ -61,7 +66,7 @@ This checklist separates completed design work from runnable scaffolding and pro
 - [x] Implement `GET /v1/media` and `GET /v1/media/{slug}` against Catalog-owned data.
 - [x] Implement authenticated, idempotent `POST /internal/v1/media/import`.
 - [x] Preserve source provenance, curated-field overrides, adult filtering, and synopsis review gating in API responses.
-- [ ] Run the media seed importer against Catalog PostgreSQL and reconcile any slug conflicts (`npm run seed:catalog -- --apply`).
+- [x] Run the media seed importer against local Catalog PostgreSQL and reconcile any slug conflicts.
 - [x] Add normalized genre/studio/platform tables and import their seed relations; keep demo schedule rows out of Catalog.
 - [x] Persist `catalog.media.changed` events in the transactional outbox.
 - [ ] Publish catalog outbox events to the broker and mark delivery status.
@@ -76,14 +81,16 @@ This checklist separates completed design work from runnable scaffolding and pro
 
 ### Search Service
 
-- [ ] Implement the Search API using a Search-owned projection; do not query Catalog tables directly.
-- [ ] Start with PostgreSQL FTS/trigram or select Meilisearch after measuring Server 2 capacity.
-- [ ] Consume catalog and schedule events idempotently; implement full reindex/rebuild.
-- [ ] Implement query length limits, pagination, synonyms, facets, and adult-content policy.
+- [x] Implement `GET /v1/search` against a Search-owned PostgreSQL projection; Search does not query Catalog tables directly.
+- [x] Start with PostgreSQL full-text search and trigram matching; keep Meilisearch optional pending capacity and relevance measurements.
+- [x] Add an authenticated full projection rebuild from the internal Catalog API and an idempotent document upsert endpoint.
+- [ ] Consume Catalog outbox events idempotently for incremental index updates.
+- [x] Implement query length limits, cursor pagination, trigram typo fallback, and adult-content exclusion.
+- [ ] Add curated query synonyms, facets, and ranking/relevance measurements.
 
 ### Ingestion Service
 
-- [x] Implement the seed importer through the Catalog API; seed import dry-run is local and live import awaits PostgreSQL provisioning.
+- [x] Implement the seed importer through the Catalog API; local live import is complete and idempotent.
 - [ ] Add queue, scheduler, retry/backoff, provider rate limiting, sync-run records, and dead-letter handling.
 - [ ] Keep provider adapters disabled until their current terms and data-retention permissions are reviewed.
 - [ ] Follow [the AniList integration plan](plan/12-anilist-integration.md): obtain written clarification for one exact feature before live requests, OAuth, caching, or persistent data changes.

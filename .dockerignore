@@ -1,0 +1,11 @@
+.git
+.next
+node_modules
+**/node_modules
+**/.next
+coverage
+.env*
+*.log
+data/nimelist.db
+data/nimelist.db-shm
+data/nimelist.db-wal

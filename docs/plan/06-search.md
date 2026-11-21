@@ -1,5 +1,7 @@
 # 06 — Search Design
 
+> **Implementation status (21 November 2026):** The first Search API is live in the local Server 2 stack on a Search-owned PostgreSQL FTS/trigram projection. It supports exact/full-text matching, word-trigram fallback, cursor pagination, adult-content exclusion, protected idempotent document upserts, and an atomic rebuild from Catalog's internal batch API. Catalog outbox delivery, synonyms, facets, and measured relevance tuning remain follow-up work.
+
 ## 1. Goals
 
 - A user types a half-remembered title in romaji, English, or Indonesian and finds it in the first three results.
@@ -170,35 +172,31 @@ Keep synonyms editorial, not algorithmic. Avoid generic Indonesian words that ap
 
 ### 3.7 API contract
 
-`GET /api/search?q=&page=&genre=&season=&year=&platform=&status=&format=&sort=`
+`GET /v1/search?q=&limit=&cursor=`
 
 Response:
 
 ```json
 {
   "query": "frieren",
-  "total": 3,
-  "page": 1,
-  "pageSize": 20,
-  "tookMs": 12,
-  "results": [
+  "items": [
     {
-      "id": 123,
+      "mediaId": "dccf37aa-ba1c-4ab9-8990-6539579f21df",
       "slug": "sousou-no-frieren",
       "title": "Sousou no Frieren",
-      "titleId": "Frieren: Setelah Perjalanan Berakhir",
-      "coverUrl": "...",
-      "score": 8.9,
-      "season": "FALL",
-      "seasonYear": 2023,
-      "platforms": ["bstation", "crunchyroll"]
+      "titleRomaji": "Sousou no Frieren",
+      "titleEnglish": "Frieren: Beyond Journey's End",
+      "coverUrl": "https://...",
+      "score": 0.92
     }
   ],
-  "facets": { "genres": [], "platforms": [], "seasons": [] }
+  "nextCursor": null,
+  "hasMore": false,
+  "tookMs": 12
 }
 ```
 
-The UI must not depend on Postgres or Meilisearch-specific fields. Next.js calls the Search Service API through a typed client; the Search Service adapter changes when Meilisearch is added.
+The current release accepts `q` from 2–80 characters, `limit` from 1–30, and an opaque cursor tied to that query (maximum 1,000 results). It always excludes adult media. Genre/platform facets and filters are follow-up work. The UI must not depend on Postgres or Meilisearch-specific fields; the Search Service adapter can change without changing the UI API.
 
 ### 3.8 Performance
 
