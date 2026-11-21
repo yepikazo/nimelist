@@ -39,7 +39,7 @@ Use one PostgreSQL server initially, but create separate databases or schemas, r
 
 ### Local Server 2 profile
 
-The laptop available for local development reports 4 logical CPUs, 7.6 GiB RAM, and a 38 GiB filesystem with about 9.7 GiB free at the time of setup. This suits a constrained development profile, not the production sizing above. `deploy/compose.server2.yml` caps all containers at about 1.7 GiB combined and binds published ports to `127.0.0.1`. Docker services share a bridge network so those host port mappings work; container egress is available. The profile runs PostgreSQL, Redis, Catalog, Schedule, and Search with a Search-owned PostgreSQL FTS/trigram projection. Redis is reserved for future queue work.
+The target Proxmox VMs have 2 vCPU, 2 GiB RAM, and 10 GB disk each. `deploy/compose.server2.yml` now caps containers at about 1.3 GiB combined and binds published ports to `127.0.0.1` by default; production sets API bindings to Server 2's private IP while PostgreSQL/Redis remain on localhost. This is a constrained starting point and must be observed for OOM/disk pressure. It runs PostgreSQL, Redis, Catalog, Schedule, and Search with a Search-owned PostgreSQL FTS/trigram projection. Redis is reserved for future queue work.
 
 ## 4. Request and data flows
 

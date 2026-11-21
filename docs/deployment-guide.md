@@ -1,14 +1,16 @@
 # Panduan deployment Nimelist — tiga server
 
-Status panduan ini: file Compose untuk ketiga host sudah disiapkan. Deployment produksi belum dijalankan karena memerlukan alamat server, domain, jaringan privat, dan akses administrator yang hanya tersedia dari Anda.
+Status panduan ini: file Compose untuk ketiga host sudah disiapkan. Deployment produksi belum dijalankan karena memerlukan akses administrator dan konfigurasi Cloudflare Tunnel yang hanya tersedia dari Anda.
 
 ## Pembagian server
 
 | Server | Isi | Akses jaringan |
 |---|---|---|
-| 1 — Web edge | Caddy + Next.js | Hanya host ini membuka TCP 80/443 ke publik. Next.js mengakses API Server 2 lewat jaringan privat. |
+| 1 — Web edge | Cloudflare Tunnel → Caddy → Next.js | Tidak perlu port masuk publik. Next.js mengakses API Server 2 lewat jaringan privat. |
 | 2 — API/data | Catalog, Schedule, Search, PostgreSQL, Redis | API diikat ke alamat privat. PostgreSQL dan Redis tetap terikat ke localhost. |
-| 3 — Ingestion | Ingestion Service | Belum ada port publik; adaptor provider tetap nonaktif. |
+| 3 — Ingestion | Ingestion Service | IP privat `10.132.26.195`; belum ada port publik; adaptor provider tetap nonaktif. |
+
+Alamat VM: Server 1 `10.132.26.56`, Server 2 `10.132.26.169`, Server 3 `10.132.26.195`. Pastikan alamat tersebut statis atau di-reserve di DHCP Proxmox. Masing-masing VM memiliki 2 vCPU, RAM 2 GiB, storage 10 GB, Debian 13; profil Server 2 membatasi container sekitar 1.3 GiB total.
 
 `deploy/compose.server2.yml` mempertahankan binding localhost untuk pengembangan laptop. Pada Server 2, ubah `SERVER2_BIND_ADDRESS` ke alamat antarmuka VPN/private server. Jangan isi alamat publik.
 
@@ -17,8 +19,8 @@ Status panduan ini: file Compose untuk ketiga host sudah disiapkan. Deployment p
 Sebelum deployment, catat:
 
 - OS dan versinya, jumlah vCPU, RAM, dan ruang disk untuk setiap server.
-- IP publik Server 1 dan nama domain yang akan digunakan.
-- IP privat/VPN Server 1, 2, dan 3 serta bukti ketiganya dapat saling menjangkau.
+- Domain `nimelist.yepikazo.site` dan akses dashboard Cloudflare untuk membuat Tunnel/public hostname.
+- IP privat Server 1, 2, dan 3 serta tes konektivitas antar-VM.
 - Akses SSH dengan hak sudo dan Docker Engine + Docker Compose plugin di ketiga host.
 - Akses DNS untuk membuat record domain mengarah ke IP publik Server 1.
 - Aturan firewall yang dapat diubah. Jangan kirim password SSH, private key, token, atau secret ke chat/repository.
@@ -27,13 +29,13 @@ Mulai dengan Tailscale, WireGuard, atau VPC provider untuk jaringan privat. Past
 
 ## 1. Siapkan Server 2
 
-Clone repository ke Server 2, lalu buat salinan environment:
+Clone repository ke Server 2 (`10.132.26.169`), lalu buat salinan environment:
 
 ```bash
 cp deploy/server2.env.example .env.server2
 ```
 
-Isi secret unik untuk seluruh password dan `INTERNAL_API_TOKEN`. Set `SERVER2_BIND_ADDRESS` ke IP privat/VPN Server 2. Biarkan `POSTGRES_HOST_PORT` dan `REDIS_HOST_PORT` seperti contoh agar database dan Redis hanya tersedia di localhost. Simpan `.env.server2` dengan permission terbatas dan jangan commit.
+Isi secret unik untuk seluruh password dan `INTERNAL_API_TOKEN`. Set `SERVER2_BIND_ADDRESS=10.132.26.169`. Biarkan `POSTGRES_HOST_PORT` dan `REDIS_HOST_PORT` seperti contoh agar database dan Redis hanya tersedia di localhost. Simpan `.env.server2` dengan permission terbatas dan jangan commit.
 
 Bangun service, jalankan migrasi, lalu impor seed dan isi proyeksi Search:
 
@@ -51,7 +53,7 @@ Firewall Server 2: izinkan TCP 4101–4103 hanya dari IP privat Server 1 (dan Se
 
 ## 2. Siapkan Server 3
 
-Clone repository dan jalankan service Ingestion:
+Clone repository pada Server 3 (`10.132.26.195`) dan jalankan service Ingestion:
 
 ```bash
 cp deploy/server3.env.example .env.server3
@@ -64,25 +66,25 @@ Firewall Server 3: tidak ada port masuk publik. Batasi SSH ke IP administrator/V
 
 ## 3. Siapkan Server 1
 
-Buat DNS A/AAAA domain menuju IP publik Server 1. Pastikan TCP 80/443 dapat mencapai host ini agar Caddy dapat menerbitkan TLS. Clone repository dan siapkan environment:
+Clone repository pada Server 1 (`10.132.26.56`) dan siapkan environment:
 
 ```bash
 cp deploy/server1.env.example .env.server1
 ```
 
-Isi `SITE_DOMAIN`, `NEXT_PUBLIC_SITE_URL`, lalu ganti contoh `10.20.0.2` pada tiga URL API dengan IP privat/VPN Server 2. Jangan gunakan alamat publik Server 2.
+Isi `NEXT_PUBLIC_SITE_URL=https://nimelist.yepikazo.site` dan token Tunnel dari Cloudflare. Template API sudah mengarah ke Server 2 (`10.132.26.169`); jangan ganti ke alamat publik.
 
-Bangun dan jalankan web edge:
+Di Cloudflare Zero Trust, buat Tunnel pada Server 1 dan public hostname `nimelist.yepikazo.site` dengan service `http://caddy:80`. Simpan token Tunnel hanya di `.env.server1`, lalu jalankan web edge:
 
 ```bash
 docker compose --env-file .env.server1 -f deploy/compose.server1.yml up -d --build
 ```
 
-Firewall Server 1: izinkan TCP 80/443 dari internet; batasi SSH ke IP administrator/VPN. Container Next.js tidak memublikasikan port host. Caddy adalah satu-satunya container yang menerima trafik publik.
+Firewall Server 1: tidak perlu membuka port masuk 80/443 untuk Tunnel; batasi SSH ke IP administrator/VPN. Next.js dan Caddy tidak memublikasikan port host. Cloudflared membuat koneksi keluar dan Caddy hanya menerima trafik dari jaringan Docker internal.
 
 ## 4. Verifikasi setelah ketiga host siap
 
-Lakukan dari Server 1 atau melalui VPN, bukan dari internet publik:
+Lakukan dari Server 1 atau melalui jaringan privat, bukan dari internet publik:
 
 ```bash
 curl -fsS http://IP_PRIVAT_SERVER_2:4101/readyz
@@ -90,7 +92,7 @@ curl -fsS http://IP_PRIVAT_SERVER_2:4102/readyz
 curl -fsS http://IP_PRIVAT_SERVER_2:4103/readyz
 curl -fsS 'http://IP_PRIVAT_SERVER_2:4101/v1/taxonomy'
 curl -fsS 'http://IP_PRIVAT_SERVER_2:4103/v1/search?q=frieren'
-curl -fsS https://DOMAIN_ANDA/api/health
+curl -fsS https://nimelist.yepikazo.site/api/health
 ```
 
 Lalu buka domain dan periksa alur beranda → katalog → detail → jadwal → pencarian. Jadwal akan kosong sampai slot kurasi dimasukkan ke Schedule Service; seed katalog tidak mengandung jadwal demo.
@@ -98,7 +100,7 @@ Lalu buka domain dan periksa alur beranda → katalog → detail → jadwal → 
 ## Jangan lanjut ke trafik publik sebelum
 
 - Ketiga service API Server 2 hanya dapat dijangkau melalui jaringan privat.
-- DNS/TLS domain berhasil dan port publik Server 2/3 tertutup.
+- Tunnel/TLS domain berhasil; API Server 2 tidak dapat dijangkau dari internet publik.
 - Backup PostgreSQL disimpan di luar ketiga server dan pemulihannya sudah dicoba.
 - Halaman inti berhasil diverifikasi terhadap API produksi.
 - Ada cara rollback image dan prosedur mengakses host jika deployment gagal.

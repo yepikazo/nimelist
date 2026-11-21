@@ -14,18 +14,18 @@ services:
     command:
       - postgres
       - -c
-      - shared_buffers=128MB
+      - shared_buffers=96MB
       - -c
-      - max_connections=40
+      - max_connections=30
       - -c
       - work_mem=4MB
       - -c
-      - maintenance_work_mem=64MB
+      - maintenance_work_mem=48MB
       - -c
       - max_wal_size=512MB
-    shm_size: 128mb
-    mem_limit: 768m
-    cpus: 1.4
+    shm_size: 64mb
+    mem_limit: 512m
+    cpus: 0.8
     pids_limit: 128
     ports:
       - 127.0.0.1:${POSTGRES_HOST_PORT:-55432}:5432
@@ -61,8 +61,8 @@ services:
       - noeviction
       - --requirepass
       - ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env.server2}
-    mem_limit: 128m
-    cpus: 0.3
+    mem_limit: 96m
+    cpus: 0.2
     pids_limit: 64
     ports:
       - 127.0.0.1:${REDIS_HOST_PORT:-56379}:6379
@@ -86,14 +86,14 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4101
-      NODE_OPTIONS: --max-old-space-size=192
+      NODE_OPTIONS: --max-old-space-size=160
       DATABASE_URL: postgresql://nimelist_catalog:${CATALOG_DB_PASSWORD:?Set CATALOG_DB_PASSWORD in .env.server2}@postgres:5432/nimelist_catalog
       DB_POOL_MAX: 5
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in .env.server2}
       CATALOG_SERVICE_URL: http://catalog:4101
       SEARCH_SERVICE_URL: http://search:4103
-    mem_limit: 320m
-    cpus: 0.5
+    mem_limit: 256m
+    cpus: 0.3
     pids_limit: 64
     ports:
       - ${SERVER2_BIND_ADDRESS:-127.0.0.1}:${CATALOG_HOST_PORT:-4101}:4101
@@ -117,13 +117,13 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4102
-      NODE_OPTIONS: --max-old-space-size=192
+      NODE_OPTIONS: --max-old-space-size=160
       DATABASE_URL: postgresql://nimelist_schedule:${SCHEDULE_DB_PASSWORD:?Set SCHEDULE_DB_PASSWORD in .env.server2}@postgres:5432/nimelist_schedule
       DB_POOL_MAX: 5
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in .env.server2}
       CATALOG_SERVICE_URL: http://catalog:4101
-    mem_limit: 320m
-    cpus: 0.5
+    mem_limit: 256m
+    cpus: 0.3
     pids_limit: 64
     ports:
       - ${SERVER2_BIND_ADDRESS:-127.0.0.1}:${SCHEDULE_HOST_PORT:-4102}:4102
@@ -149,13 +149,13 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4103
-      NODE_OPTIONS: --max-old-space-size=128
+      NODE_OPTIONS: --max-old-space-size=112
       DATABASE_URL: postgresql://nimelist_search:${SEARCH_DB_PASSWORD:?Set SEARCH_DB_PASSWORD in .env.server2}@postgres:5432/nimelist_search
       DB_POOL_MAX: 5
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in .env.server2}
       CATALOG_SERVICE_URL: http://catalog:4101
     mem_limit: 192m
-    cpus: 0.3
+    cpus: 0.2
     pids_limit: 48
     ports:
       - ${SERVER2_BIND_ADDRESS:-127.0.0.1}:${SEARCH_HOST_PORT:-4103}:4103

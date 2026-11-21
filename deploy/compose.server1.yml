@@ -35,12 +35,6 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
-    environment:
-      SITE_DOMAIN: ${SITE_DOMAIN:?Set SITE_DOMAIN in .env.server1}
-    ports:
-      - ${PUBLIC_BIND_ADDRESS:-0.0.0.0}:80:80
-      - ${PUBLIC_BIND_ADDRESS:-0.0.0.0}:443:443
-      - ${PUBLIC_BIND_ADDRESS:-0.0.0.0}:443:443/udp
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - server1-caddy-data:/data
@@ -48,6 +42,16 @@ services:
     depends_on:
       web:
         condition: service_healthy
+    networks: [web-edge]
+    logging: *default-logging
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run", "--token", "${CLOUDFLARED_TUNNEL_TOKEN:?Set CLOUDFLARED_TUNNEL_TOKEN in .env.server1}"]
+    depends_on:
+      caddy:
+        condition: service_started
     networks: [web-edge]
     logging: *default-logging
 

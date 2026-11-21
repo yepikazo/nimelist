@@ -83,7 +83,7 @@ Untuk Schedule, gunakan database dan role miliknya sendiri pada `DATABASE_URL`, 
 
 ### Server 2 lokal dengan Docker
 
-Profil Docker Server 2 untuk laptop ini ada di `deploy/compose.server2.yml`. Batas resource-nya sekitar 1.7 GiB RAM untuk PostgreSQL, Redis, Catalog, Schedule, dan Search Service. Port dipublikasikan ke localhost saja. Container memakai bridge network dan dapat melakukan koneksi keluar.
+Profil Docker Server 2 ada di `deploy/compose.server2.yml`. Batas container sekitar 1.3 GiB RAM untuk PostgreSQL, Redis, Catalog, Schedule, dan Search Service, menyisakan ruang untuk Debian pada VM 2 GiB. Secara default port dipublikasikan ke localhost; deployment mengikat API ke IP privat Server 2 sementara PostgreSQL/Redis tetap localhost.
 
 ```bash
 cp deploy/server2.env.example .env.server2
