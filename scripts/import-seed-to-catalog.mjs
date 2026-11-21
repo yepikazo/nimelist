@@ -39,6 +39,14 @@ function payloadFor(media) {
     synonyms: media.synonyms,
     genres: media.genres,
     studios: media.studios,
+    platformLinks: (media.streaming ?? []).map((link) => ({
+      platformSlug: link.platformSlug,
+      url: link.url,
+      language: link.language,
+      accessType: link.accessType,
+      status: "SEARCH_ONLY",
+      notes: link.note,
+    })),
     isAdult: Boolean(media.isAdult),
     contentStatus: media.contentStatus,
   };
@@ -48,17 +56,12 @@ function payloadFor(media) {
   return body;
 }
 
-function idempotencyKey(body) {
-  return `seed-${createHash("sha256").update(JSON.stringify(body)).digest("hex")}`;
-}
-
-async function importOne(media) {
-  const body = payloadFor(media);
-  const key = idempotencyKey(body);
+async function postInternal(path, body, key) {
   let lastError;
   for (let attempt = 0; attempt < 5; attempt += 1) {
+    let response;
     try {
-      const response = await fetch(`${baseUrl}/internal/v1/media/import`, {
+      response = await fetch(`${baseUrl}${path}`, {
         method: "POST",
         headers: {
           authorization: `Bearer ${token}`,
@@ -68,23 +71,46 @@ async function importOne(media) {
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(10_000),
       });
-      const result = await response.json().catch(() => ({}));
-      if (response.ok) return { slug: media.slug, status: result.status };
-      const message = result.error?.message ?? `Catalog mengembalikan HTTP ${response.status}`;
-      if (response.status < 500 && response.status !== 429) throw new Error(`${media.slug}: ${message}`);
-      lastError = new Error(`${media.slug}: ${message}`);
     } catch (error) {
-      if (error instanceof Error && /: Catalog mengembalikan HTTP|: /.test(error.message) && !/fetch failed|timed out/i.test(error.message)) throw error;
       lastError = error;
+    }
+    if (response) {
+      const result = await response.json().catch(() => ({}));
+      if (response.ok) return result;
+      const message = result.error?.message ?? `Catalog mengembalikan HTTP ${response.status}`;
+      lastError = new Error(message);
+      if (response.status < 500 && response.status !== 429) throw lastError;
     }
     if (attempt < 4) await new Promise((resolveDelay) => setTimeout(resolveDelay, 250 * (2 ** attempt)));
   }
-  throw lastError ?? new Error(`Gagal mengimpor ${media.slug}.`);
+  throw lastError ?? new Error(`Gagal mengirim permintaan internal ${path}.`);
+}
+
+function importKey(prefix, body) {
+  return `${prefix}-${createHash("sha256").update(JSON.stringify(body)).digest("hex")}`;
+}
+
+async function importOne(media) {
+  const body = payloadFor(media);
+  const result = await postInternal("/internal/v1/media/import", body, importKey("seed", body));
+  return { slug: media.slug, status: result.status };
+}
+
+async function importTaxonomy(seed) {
+  const body = {
+    genres: seed.genres.map(({ slug, name, nameId, description }) => ({ slug, name, nameId, description })),
+    studios: seed.studios.map(({ slug, name, nameNative, websiteUrl }) => ({ slug, name, nameNative, websiteUrl })),
+    platforms: seed.platforms.map(({ slug, name, websiteUrl, searchUrlTemplate, color, description, sortOrder }) => ({
+      slug, name, websiteUrl, searchUrlTemplate, color, description, sortOrder,
+    })),
+  };
+  return postInternal("/internal/v1/taxonomy/import", body, importKey("seed-taxonomy", body));
 }
 
 async function main() {
   const seed = JSON.parse(await readFile(seedPath, "utf8"));
   if (!Array.isArray(seed.media) || seed.media.length === 0) throw new Error("Seed harus memiliki array media yang tidak kosong.");
+  if (![seed.genres, seed.studios, seed.platforms].every(Array.isArray)) throw new Error("Seed harus memiliki array genres, studios, dan platforms.");
   if (!apply) {
     console.log(JSON.stringify({
       mode: "dry-run",
@@ -93,12 +119,18 @@ async function main() {
       generatedAt: seed.generatedAt,
       mediaCount: seed.media.length,
       reviewedCount: seed.media.filter((media) => ["REVIEWED", "PUBLISHED"].includes(media.contentStatus)).length,
+      genreCount: seed.genres.length,
+      studioCount: seed.studios.length,
+      platformCount: seed.platforms.length,
+      platformSearchLinkCount: seed.media.reduce((count, media) => count + (media.streaming?.length ?? 0), 0),
       sampleSlugs: seed.media.slice(0, 5).map((media) => media.slug),
       instruction: "Tambahkan --apply untuk mengirim data ke Catalog Service.",
     }, null, 2));
     return;
   }
   if (!token || token.length < 32) throw new Error("INTERNAL_API_TOKEN wajib diisi dan minimal 32 karakter.");
+  const taxonomy = await importTaxonomy(seed);
+  console.log(JSON.stringify({ stage: "taxonomy", ...taxonomy }));
   const results = [];
   for (let offset = 0; offset < seed.media.length; offset += concurrency) {
     const batch = seed.media.slice(offset, offset + concurrency);

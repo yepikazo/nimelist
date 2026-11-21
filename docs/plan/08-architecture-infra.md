@@ -17,8 +17,8 @@
 | Service | Owns | API / events | Initial implementation |
 |---|---|---|---|
 | **Web (Next.js)** | UI, SEO rendering, BFF composition; no domain database | Calls internal Catalog, Schedule, Search APIs | Existing `app/`; replace direct repository access progressively |
-| **Catalog Service** | Anime metadata, aliases, genres, studios, provenance and editorial synopsis state | REST read/write API; emits `catalog.media.changed` | Node.js ESM scaffold exists; domain API + PostgreSQL pending |
-| **Schedule Service** | Recurring slots, dated occurrences, WIB confidence/source and verification history | REST API; emits `schedule.changed` | Node.js ESM scaffold exists; domain API + PostgreSQL pending |
+| **Catalog Service** | Anime metadata, aliases, genres, studios, provenance and editorial synopsis state | REST read/write API; emits catalog change events | Node.js API, PostgreSQL migrations, normalized taxonomy, and outbox exist; DB provisioning and event publishing pending |
+| **Schedule Service** | Recurring slots, dated occurrences, WIB confidence/source and verification history | REST API; emits `schedule.changed` | Node.js API, owned migration, and outbox exist; DB provisioning and event publishing pending |
 | **Search Service** | Search API, query normalization, synonyms and search index | REST search API; consumes catalog/schedule change events | Node.js ESM scaffold exists; index backend/API pending |
 | **Ingestion Service** | Provider adapters, import cursors, sync runs, retry policy and normalized DTOs | Worker jobs; calls Catalog/Schedule APIs; emits status events | Node.js ESM scaffold exists; worker, scheduler, and providers pending |
 | **Curation/Admin** | Admin workflow and audit of curation actions; does not own catalog/schedule rows | Private UI/API calls Catalog and Schedule APIs | Start as authenticated internal routes; split only if independent deployment is useful or required |

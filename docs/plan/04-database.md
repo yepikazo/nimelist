@@ -5,6 +5,7 @@
 - **Microservice ownership:** the schema below is a logical catalog, not a single shared schema used by every runtime. Catalog Service owns media/taxonomy/provenance; Schedule Service owns schedules; Ingestion owns sync cursors/logs; Search owns only its rebuildable index. User/community tables remain a later User/Community Service concern.
 - **No cross-service table access.** Use separate PostgreSQL databases or schemas, roles, and migration histories even when they share one PostgreSQL server. Other services call the owning API or consume versioned events.
 - The current beta still uses SQLite in `lib/repository.ts`. The move to PostgreSQL and service APIs is a planned migration, not an existing deployment.
+- Initial Catalog and Schedule PostgreSQL schemas now live in `services/*/migrations/`; they are implementation slices, not yet a full realization of every table in this logical model. The Catalog slice currently uses UUID media keys and slug-keyed taxonomy tables.
 - **PostgreSQL 17+** (18 if the hosting image is stable). Use `citext`, `pg_trgm`, `unaccent`, and built-in full-text search.
 - **Prisma 7.10.1** pinned for schema, migrations, and typed client. Do not use the npm `latest` tag: it currently points at an 8.0 release candidate.
 - Table names: `snake_case`, singular (`media`, not `medias`). Prisma models `PascalCase` with `@@map`.

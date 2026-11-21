@@ -25,13 +25,16 @@ This checklist separates completed design work from runnable scaffolding and pro
 - [x] Added versioned JSON Schema contracts for Catalog and Schedule change events.
 - [x] Added root scripts to start each service individually.
 - [x] Added Catalog and Schedule PostgreSQL migrations, connection pools, and migration commands.
+- [x] Added normalized Catalog genre, studio, platform, media relation, and platform-link tables.
 - [x] Implemented public Catalog list/detail APIs and authenticated, idempotent internal import.
 - [x] Implemented authenticated batch Catalog summaries for service-to-service enrichment.
 - [x] Implemented Schedule date API (`Asia/Jakarta`) and authenticated, idempotent slot upsert.
 - [x] Added service readiness checks against the owned PostgreSQL database.
 - [x] Added transactional outbox records for Catalog and Schedule changes.
+- [x] Added `catalog.taxonomy.changed` event contract and persisted taxonomy updates in the Catalog outbox.
 - [x] Updated Catalog/Schedule API contracts and Dockerfiles to include PostgreSQL dependencies and migrations.
 - [x] Added a dry-run-first media seed importer that uses the Catalog API, preserves seed slugs, and retries transient failures.
+- [x] Extended the seed importer to upsert taxonomy and preserve platform search links as `SEARCH_ONLY`.
 
 ## Current implementation limits
 
@@ -58,7 +61,7 @@ This checklist separates completed design work from runnable scaffolding and pro
 - [x] Implement authenticated, idempotent `POST /internal/v1/media/import`.
 - [x] Preserve source provenance, curated-field overrides, adult filtering, and synopsis review gating in API responses.
 - [ ] Run the media seed importer against Catalog PostgreSQL and reconcile any slug conflicts (`npm run seed:catalog -- --apply`).
-- [ ] Add normalized genre/studio/platform tables and import their seed relations; keep demo schedule rows out of Catalog.
+- [x] Add normalized genre/studio/platform tables and import their seed relations; keep demo schedule rows out of Catalog.
 - [x] Persist `catalog.media.changed` events in the transactional outbox.
 - [ ] Publish catalog outbox events to the broker and mark delivery status.
 

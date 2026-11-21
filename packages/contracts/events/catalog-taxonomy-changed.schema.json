@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nimelist:contracts:events:catalog-taxonomy-changed:1.0.0",
+  "title": "catalog.taxonomy.changed",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventId", "eventType", "eventVersion", "occurredAt", "changedCounts"],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "eventType": { "const": "catalog.taxonomy.changed" },
+    "eventVersion": { "const": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "changedCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["genreCount", "studioCount", "platformCount"],
+      "properties": {
+        "genreCount": { "type": "integer", "minimum": 0 },
+        "studioCount": { "type": "integer", "minimum": 0 },
+        "platformCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "traceId": { "type": "string" }
+  }
+}
