@@ -556,7 +556,7 @@ export async function getCatalogFacets(): Promise<CatalogFacets> {
 }
 
 export async function getRelatedMedia(
-  mediaId: number,
+  mediaId: number | string,
   genreSlugs: string[],
   limit = 6,
 ): Promise<MediaSummary[]> {

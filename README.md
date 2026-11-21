@@ -55,7 +55,7 @@ rm -rf .next
 
 ### Scaffold layanan
 
-Workspace layanan tersedia di `services/` dan kontraknya di `packages/contracts/`. Catalog dan Schedule sudah memiliki API bisnis serta migrasi PostgreSQL. Search dan Ingestion masih berupa scaffold dengan `/healthz` dan `/v1/info`.
+Workspace layanan tersedia di `services/` dan kontraknya di `packages/contracts/`. Catalog, Schedule, dan Search memiliki API bisnis serta migrasi PostgreSQL. Ingestion menyediakan alur import seed/manual.
 
 Jalankan satu layanan dari root repo:
 
@@ -67,6 +67,8 @@ npm run start:ingestion
 ```
 
 Port default berturut-turut `4101` sampai `4104`; setiap layanan menerima override melalui `PORT`. Checklist implementasi dan pekerjaan tersisa ada di [docs/implementation-checklist.md](docs/implementation-checklist.md).
+
+Aplikasi Next.js memakai `CATALOG_SERVICE_URL` (`http://127.0.0.1:4101`), `SCHEDULE_SERVICE_URL` (`http://127.0.0.1:4102`), dan `SEARCH_SERVICE_URL` (`http://127.0.0.1:4103`) untuk request server-side. Saat menjalankan web app di luar jaringan Docker, arahkan variabel ini ke port service yang dipublikasikan secara lokal. Jangan beri prefix `NEXT_PUBLIC_`; URL service hanya digunakan oleh server Next.js.
 
 Catalog dan Schedule memerlukan PostgreSQL terpisah dan rahasia internal yang sama. Contoh konfigurasi lokal:
 

@@ -131,7 +131,7 @@ export function SiteHeader() {
         >
           <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl">
             <form
-              action="/anime"
+              action="/search"
               method="get"
               className="flex items-center gap-3 border-b border-line px-4 py-3"
               onSubmit={() => setOpen(false)}

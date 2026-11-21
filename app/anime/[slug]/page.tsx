@@ -31,12 +31,7 @@ import { MediaGrid } from "@/components/media-grid";
 import { SectionHeading } from "@/components/section-heading";
 import { ShareButton } from "@/components/share-button";
 import { SITE_URL } from "@/lib/constants";
-import {
-  getAllMediaSlugs,
-  getMediaBySlug,
-  getRelatedMedia,
-  getTodayDate,
-} from "@/lib/repository";
+import { getCatalogMediaBySlug, getJakartaToday, getRelatedCatalogMedia } from "@/lib/service-clients";
 import {
   coverFallback,
   formatDateWeekday,
@@ -52,14 +47,9 @@ import {
 
 type Params = Promise<{ slug: string }>;
 
-export async function generateStaticParams() {
-  const slugs = await getAllMediaSlugs();
-  return slugs.map((slug) => ({ slug }));
-}
-
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
-  const media = await getMediaBySlug(slug);
+  const media = await getCatalogMediaBySlug(slug);
   if (!media) {
     return { title: "Anime tidak ditemukan", robots: { index: false, follow: false } };
   }
@@ -89,15 +79,11 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function AnimeDetailPage({ params }: { params: Params }) {
   const { slug } = await params;
-  const media = await getMediaBySlug(slug);
+  const media = await getCatalogMediaBySlug(slug);
   if (!media) notFound();
-  const today = await getTodayDate();
+  const today = getJakartaToday();
 
-  const related = await getRelatedMedia(
-    media.id,
-    media.genres.map((genre) => genre.slug),
-    6,
-  );
+  const related = await getRelatedCatalogMedia(String(media.id), media.genres.map((genre) => genre.slug), 6);
   const nextSchedule = media.scheduleSlots.slice(0, 3);
   const altTitles = [media.titleRomaji, media.titleEnglish, ...media.synonyms]
     .filter((value): value is string => Boolean(value))

@@ -24,13 +24,8 @@ import {
   MOODS,
   SITE_URL,
 } from "@/lib/constants";
-import {
-  getGenres,
-  getPlatforms,
-  getSiteStats,
-  getTodaySchedule,
-  listMedia,
-} from "@/lib/repository";
+import { getCatalogFacets, getCatalogMedia } from "@/lib/service-clients";
+import { getServiceTodaySchedule } from "@/lib/service-clients";
 import type { MediaSummary } from "@/lib/types";
 import {
   coverFallback,
@@ -47,14 +42,22 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [stats, today, season, reviewed, platforms, genres] = await Promise.all([
-    getSiteStats(),
-    getTodaySchedule(),
-    listMedia({ season: CURRENT_SEASON.season, year: CURRENT_SEASON.year, sort: "populer", pageSize: 12 }),
-    listMedia({ contentStatus: "REVIEWED", sort: "skor", pageSize: 12 }),
-    getPlatforms(),
-    getGenres(),
+  const [today, season, reviewed, facets, catalogTotal] = await Promise.all([
+    getServiceTodaySchedule(),
+    getCatalogMedia({ season: CURRENT_SEASON.season, year: CURRENT_SEASON.year, sort: "populer", pageSize: 12 }),
+    getCatalogMedia({ contentStatus: "REVIEWED", sort: "skor", pageSize: 12 }),
+    getCatalogFacets(),
+    getCatalogMedia({ pageSize: 1 }),
   ]);
+
+  const platforms = facets.platforms;
+  const genres = facets.genres;
+  const stats = {
+    media: catalogTotal.total,
+    genres: genres.length,
+    platforms: platforms.length,
+    currentSeason: facets.seasons.find((item) => item.season === CURRENT_SEASON.season && item.year === CURRENT_SEASON.year)?.count ?? 0,
+  };
 
   const featured = season.items.slice(0, 3);
   const todayItems = today.items.slice(0, 8);

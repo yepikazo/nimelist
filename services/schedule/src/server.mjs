@@ -132,13 +132,50 @@ async function getSchedule(dateString) {
     if (!media) return [];
     return [{ mediaId: slot.mediaId, slug: media.slug, title: media.title,
       episodeNumber: slot.episodeNumber, date: dateString,
-      timeWib: String(slot.time_wib).slice(0, 5), confidence: slot.confidence, sourceUrl: slot.source_url }];
+      timeWib: String(slot.time_wib).slice(0, 5), confidence: slot.confidence, sourceUrl: slot.source_url,
+      media: { ...media, id: slot.mediaId } }];
   }) } };
+}
+
+async function getMediaSchedule(mediaId) {
+  if (!uuidPattern.test(mediaId)) fail(400, "INVALID_MEDIA_ID", "mediaId harus UUID.");
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+  const dates = Array.from({ length: 21 }, (_, index) => {
+    const date = new Date(`${today}T00:00:00.000Z`);
+    date.setUTCDate(date.getUTCDate() + index);
+    return date.toISOString().slice(0, 10);
+  });
+  const rows = await database().query(
+    `SELECT id, day_of_week, time_wib, base_date, base_episode, episodes, confidence, source
+     FROM schedule_slot WHERE media_id=$1 AND base_date <= $2 ORDER BY day_of_week, time_wib`,
+    [mediaId, dates.at(-1)],
+  );
+  const summaries = await catalogSummaries([mediaId]);
+  if (!summaries.has(mediaId)) return { status: 200, body: { mediaId, items: [] } };
+  const items = [];
+  for (const row of rows.rows) {
+    for (const dateString of dates) {
+      const date = dateParts(dateString);
+      if ((date.getUTCDay() || 7) !== Number(row.day_of_week) || dateString < String(row.base_date).slice(0, 10)) continue;
+      const elapsedDays = Math.floor((date.getTime() - new Date(`${String(row.base_date).slice(0, 10)}T00:00:00.000Z`).getTime()) / 86400000);
+      const episodeNumber = Number(row.base_episode) + Math.floor(elapsedDays / 7);
+      if (row.episodes != null && episodeNumber > Number(row.episodes)) continue;
+      items.push({ id: String(row.id), dayOfWeek: Number(row.day_of_week), timeWib: String(row.time_wib).slice(0, 5),
+        baseEpisode: Number(row.base_episode), episodes: row.episodes == null ? null : Number(row.episodes),
+        confidence: row.confidence, source: row.source, date: dateString, episodeNumber });
+      break;
+    }
+  }
+  return { status: 200, body: { mediaId, items: items.sort((a, b) => a.date.localeCompare(b.date) || a.timeWib.localeCompare(b.timeWib)) } };
 }
 
 async function handleRequest(request, url) {
   const match = url.pathname.match(/^\/v1\/schedule\/(\d{4}-\d{2}-\d{2})$/);
   if (request.method === "GET" && match) return getSchedule(match[1]);
+  const mediaMatch = url.pathname.match(/^\/v1\/schedule\/media\/([^/]+)$/);
+  if (request.method === "GET" && mediaMatch) return getMediaSchedule(mediaMatch[1]);
   if (request.method === "PUT" && url.pathname === "/internal/v1/slots") return upsertSlot(request);
   return null;
 }

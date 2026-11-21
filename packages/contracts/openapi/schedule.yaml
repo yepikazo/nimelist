@@ -5,6 +5,27 @@ info:
 servers:
   - url: http://schedule:4102
 paths:
+  /v1/schedule/media/{mediaId}:
+    get:
+      operationId: getUpcomingScheduleForMedia
+      summary: Ambil jadwal terdekat untuk satu media publik.
+      parameters:
+        - name: mediaId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Kemunculan jadwal dalam tiga minggu ke depan.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mediaId, items]
+                properties:
+                  mediaId: { type: string, format: uuid }
+                  items: { type: array, items: { type: object } }
+        "400": { $ref: "#/components/responses/BadRequest" }
   /v1/schedule/{date}:
     get:
       operationId: getScheduleForDate
@@ -63,7 +84,7 @@ components:
   schemas:
     ScheduleItem:
       type: object
-      required: [mediaId, slug, title, episodeNumber, date, timeWib, confidence]
+      required: [mediaId, slug, title, episodeNumber, date, timeWib, confidence, media]
       properties:
         mediaId: { type: string }
         slug: { type: string }
@@ -73,6 +94,32 @@ components:
         timeWib: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
         confidence: { type: string, enum: [CONFIRMED, ESTIMATED, DELAYED, CANCELLED] }
         sourceUrl: { type: [string, "null"], format: uri }
+        media:
+          type: object
+          description: Ringkasan Catalog untuk komponen jadwal.
+          required: [id, slug, title, titleRomaji, format, status, genres, studios, platforms]
+          properties:
+            id: { type: string, format: uuid }
+            slug: { type: string }
+            title: { type: string }
+            titleRomaji: { type: string }
+            titleEnglish: { type: [string, "null"] }
+            titleId: { type: [string, "null"] }
+            synopsisId: { type: [string, "null"] }
+            format: { type: string }
+            status: { type: string }
+            season: { type: [string, "null"] }
+            seasonYear: { type: [integer, "null"] }
+            episodes: { type: [integer, "null"] }
+            durationMinutes: { type: [integer, "null"] }
+            scoreAvg: { type: [number, "null"] }
+            popularity: { type: integer }
+            coverUrl: { type: [string, "null"], format: uri }
+            isAdult: { type: boolean, const: false }
+            contentStatus: { type: string }
+            genres: { type: array, items: { type: object } }
+            studios: { type: array, items: { type: object } }
+            platforms: { type: array, items: { type: object } }
     ScheduleSlotInput:
       type: object
       required: [mediaId, dayOfWeek, timeWib, baseDate, baseEpisode, confidence, source]

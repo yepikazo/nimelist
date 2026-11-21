@@ -1,6 +1,6 @@
 # 10 — Roadmap
 
-> **Architecture revision (21 Nov 2026):** The assignment requires microservices. This supersedes earlier tasks that described one web app plus a worker. The current repo is still a Next.js/SQLite beta; the revised critical path is service contracts → Catalog/Schedule APIs and owned databases → Search API → Ingestion worker → Next.js migration → three-server deployment. Estimates below are planning placeholders and must be re-estimated for the service split.
+> **Architecture revision (21 Nov 2026):** The assignment requires microservices. This supersedes earlier tasks that described one web app plus a worker. Catalog, Schedule, and Search run locally with owned databases; the core Next.js routes now use their APIs while secondary routes still read SQLite. Remaining critical work is end-to-end verification, seed/manual Ingestion API exposure, and three-server deployment. Estimates below are planning placeholders and must be re-estimated for the service split.
 
 ## 1. Assumptions
 
