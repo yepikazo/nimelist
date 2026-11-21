@@ -1,7 +1,7 @@
 # Nimelist — Implementation Checklist
 
 **Updated:** 21 November 2026  
-**Status:** Server 2 local stack, core Catalog/Schedule/Search APIs, Catalog-to-Search relay, and Next.js core-route integration are implemented; end-to-end verification and three-server deployment remain pending.
+**Status:** Server 2 local stack, core Catalog/Schedule/Search APIs, Catalog-to-Search relay, Next.js core-route integration, and initial three-host Compose templates are implemented; end-to-end verification and production deployment remain pending.
 
 This checklist separates completed design work from runnable scaffolding and production work. A health endpoint means a process starts; it does not mean that the service's business functions are implemented.
 
@@ -125,7 +125,7 @@ Fitur berikut ditunda dan tidak memblokir MVP: integrasi AniList/provider ekster
 
 ## Phase 3 — Deploy and operate the three hosts
 
-- [ ] Add Compose deployment files for Server 1, Server 2, and Server 3.
+- [x] Add initial Compose deployment files for Server 1, Server 2, and Server 3.
 - [ ] Restrict public ingress to Server 1; keep databases, broker, and internal APIs private.
 - [ ] Add CI for lint/typecheck, contract checks, per-service image builds, and deployment by immutable image tag.
 - [ ] Deploy staging with separate databases, queues, credentials, and hostname protections.

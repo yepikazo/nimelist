@@ -46,7 +46,7 @@ rm -rf .next
 
 - Next.js 16 App Router, React 19, Tailwind CSS v4.
 - Cache Components dan `use cache` untuk query katalog.
-- Implementasi beta saat ini memakai SQLite melalui `node:sqlite` dan `lib/repository.ts`.
+- Rute inti (beranda, katalog, detail, jadwal, pencarian) memakai API services. Rute sekunder dan sitemap masih memakai SQLite melalui `node:sqlite` dan `lib/repository.ts`.
 - Target arsitektur tugas: layanan Catalog, Schedule, Search, dan Ingestion yang dapat dibangun/deploy terpisah; Next.js menjadi web/BFF.
 - Target produksi: PostgreSQL dengan kepemilikan data terpisah per service; Search API memakai PostgreSQL FTS lebih dulu, Meilisearch opsional setelah kebutuhan terukur.
 - Target tiga server: Server 1 (Caddy + Next.js), Server 2 (API domain + PostgreSQL + antrean), Server 3 (ingestion worker, scheduler, admin internal).
@@ -66,7 +66,7 @@ npm run start:search
 npm run start:ingestion
 ```
 
-Port default berturut-turut `4101` sampai `4104`; setiap layanan menerima override melalui `PORT`. Checklist implementasi dan pekerjaan tersisa ada di [docs/implementation-checklist.md](docs/implementation-checklist.md).
+Port default berturut-turut `4101` sampai `4104`; setiap layanan menerima override melalui `PORT`. Checklist implementasi dan pekerjaan tersisa ada di [docs/implementation-checklist.md](docs/implementation-checklist.md). Panduan deployment tiga host dan daftar input dari pemilik server ada di [docs/deployment-guide.md](docs/deployment-guide.md).
 
 Aplikasi Next.js memakai `CATALOG_SERVICE_URL` (`http://127.0.0.1:4101`), `SCHEDULE_SERVICE_URL` (`http://127.0.0.1:4102`), dan `SEARCH_SERVICE_URL` (`http://127.0.0.1:4103`) untuk request server-side. Saat menjalankan web app di luar jaringan Docker, arahkan variabel ini ke port service yang dipublikasikan secara lokal. Jangan beri prefix `NEXT_PUBLIC_`; URL service hanya digunakan oleh server Next.js.
 

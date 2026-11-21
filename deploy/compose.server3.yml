@@ -1,0 +1,26 @@
+name: nimelist-server3
+
+services:
+  ingestion:
+    build:
+      context: ..
+      dockerfile: services/ingestion/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4104
+    mem_limit: 192m
+    cpus: 0.3
+    pids_limit: 48
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4104/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # No host port is published. Provider integration remains disabled.
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

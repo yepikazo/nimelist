@@ -1,6 +1,6 @@
 # 08 — Microservices Architecture and Infrastructure
 
-**Status:** Target architecture for the required three-server deployment. This is a design; the current beta is still a Next.js + SQLite monolith.
+**Status:** Target architecture for the required three-server deployment. Core Next.js routes now use Catalog, Schedule, and Search APIs. Server 2 runs locally; initial Server 1/3 Compose templates exist, but production networking and deployment are pending.
 
 ## 1. Architecture principles
 
