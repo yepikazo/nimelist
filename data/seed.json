@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-09T04:30:57.488Z",
+  "generatedAt": "2026-11-21T12:42:21.544Z",
   "source": {
     "name": "anime-offline-database",
     "license": "ODbL-1.0",
@@ -227,104 +227,59 @@
   ],
   "studios": [
     {
-      "id": 78,
+      "id": 48,
       "slug": "100studio",
       "name": "100studio"
     },
     {
-      "id": 26,
-      "slug": "8-bit",
-      "name": "8-bit"
-    },
-    {
-      "id": 25,
+      "id": 18,
       "slug": "8bit",
       "name": "8bit"
     },
     {
-      "id": 27,
-      "slug": "8bit-2",
-      "name": "8bit , ."
-    },
-    {
-      "id": 17,
+      "id": 13,
       "slug": "a-1-pictures",
       "name": "A-1 Pictures"
     },
     {
-      "id": 22,
-      "slug": "a-1-pictures-2",
-      "name": "A-1 Pictures"
-    },
-    {
-      "id": 97,
+      "id": 59,
       "slug": "actas",
       "name": "Actas"
     },
     {
-      "id": 56,
+      "id": 34,
       "slug": "aisle",
       "name": "Aisle"
     },
     {
-      "id": 75,
-      "slug": "aisle-2",
-      "name": "Aisle"
-    },
-    {
-      "id": 51,
+      "id": 30,
       "slug": "arvo-animation",
       "name": "Arvo Animation"
     },
     {
-      "id": 60,
-      "slug": "arvo-animation-2",
-      "name": "Arvo Animation"
-    },
-    {
-      "id": 82,
+      "id": 51,
       "slug": "bakkka",
       "name": "Bakkka"
     },
     {
-      "id": 48,
+      "id": 28,
       "slug": "bandai-namco-pictures",
       "name": "Bandai Namco Pictures"
     },
     {
-      "id": 13,
+      "id": 9,
       "slug": "bones",
       "name": "Bones"
     },
     {
-      "id": 28,
-      "slug": "bones-2",
-      "name": "Bones"
-    },
-    {
-      "id": 36,
-      "slug": "bones-3",
-      "name": "Bones"
-    },
-    {
-      "id": 57,
+      "id": 35,
       "slug": "bridge",
-      "name": "Bridge ."
+      "name": "Bridge"
     },
     {
-      "id": 76,
-      "slug": "bridge-2",
-      "name": "Bridge ."
-    },
-    {
-      "id": 86,
+      "id": 54,
       "slug": "c2c",
       "name": "C2C"
-    },
-    {
-      "id": 42,
-      "slug": "chizu",
-      "name": "Chizu, ."
     },
     {
       "id": 4,
@@ -332,188 +287,88 @@
       "name": "CloverWorks"
     },
     {
-      "id": 10,
-      "slug": "cloverworks-2",
-      "name": "CloverWorks"
-    },
-    {
-      "id": 99,
-      "slug": "cloverworks-3",
-      "name": "CloverWorks"
-    },
-    {
-      "id": 19,
+      "id": 14,
       "slug": "comix-wave-films",
-      "name": "Comix Wave Films ."
-    },
-    {
-      "id": 20,
-      "slug": "comix-wave-films-2",
-      "name": "Comix Wave Films ."
+      "name": "Comix Wave Films"
     },
     {
       "id": 37,
-      "slug": "comix-wave-films-3",
-      "name": "Comix Wave Films ."
-    },
-    {
-      "id": 59,
       "slug": "cue",
       "name": "CUE"
     },
     {
-      "id": 55,
+      "id": 33,
       "slug": "david-production",
       "name": "David Production"
     },
     {
-      "id": 52,
+      "id": 31,
       "slug": "diomedea",
       "name": "Diomedéa"
     },
     {
-      "id": 11,
+      "id": 8,
       "slug": "doga-kobo",
       "name": "Doga Kobo"
     },
     {
-      "id": 12,
-      "slug": "doga-kobo-2",
-      "name": "Dōga Kōbō"
-    },
-    {
-      "id": 64,
+      "id": 39,
       "slug": "e-and-h-production",
       "name": "E&H Production"
     },
     {
-      "id": 87,
+      "id": 55,
       "slug": "east-fish-studio",
       "name": "East Fish Studio"
     },
     {
-      "id": 47,
+      "id": 27,
       "slug": "electric-circus",
-      "name": "Electric Circus ."
+      "name": "Electric Circus"
     },
     {
-      "id": 80,
+      "id": 50,
       "slug": "engi",
       "name": "ENGI"
     },
     {
-      "id": 84,
+      "id": 53,
       "slug": "felix-film",
       "name": "Felix Film"
     },
     {
-      "id": 85,
-      "slug": "felixfilm",
-      "name": "Felixfilm"
-    },
-    {
-      "id": 67,
+      "id": 41,
       "slug": "j-c-staff",
       "name": "J.C.Staff"
     },
     {
-      "id": 81,
-      "slug": "j-c-staff-2",
-      "name": "J.C.Staff"
-    },
-    {
-      "id": 88,
-      "slug": "j-c-staff-3",
-      "name": "J.C.Staff"
-    },
-    {
-      "id": 94,
+      "id": 58,
       "slug": "jumondou",
       "name": "Jumondou"
     },
     {
-      "id": 38,
+      "id": 22,
       "slug": "kinema-citrus",
       "name": "Kinema Citrus"
     },
     {
-      "id": 50,
-      "slug": "kinema-citrus-2",
-      "name": "Kinema Citrus"
-    },
-    {
-      "id": 96,
-      "slug": "kinema-citrus-3",
-      "name": "Kinema Citrus"
-    },
-    {
-      "id": 54,
+      "id": 32,
       "slug": "konami-animation",
       "name": "Konami Animation"
     },
     {
-      "id": 63,
-      "slug": "konami-animation-2",
-      "name": "Konami Animation"
-    },
-    {
-      "id": 16,
+      "id": 12,
       "slug": "kyoto-animation",
       "name": "Kyoto Animation"
     },
     {
-      "id": 39,
-      "slug": "kyoto-animation-2",
-      "name": "Kyoto Animation"
-    },
-    {
-      "id": 98,
-      "slug": "kyoto-animation-3",
-      "name": "Kyoto Animation"
-    },
-    {
-      "id": 69,
+      "id": 43,
       "slug": "liden-films",
       "name": "Liden Films"
     },
     {
-      "id": 89,
-      "slug": "liden-films-2",
-      "name": "Liden Films"
-    },
-    {
-      "id": 70,
-      "slug": "lidenfilms",
-      "name": "Lidenfilms"
-    },
-    {
-      "id": 90,
-      "slug": "lidenfilms-2",
-      "name": "Lidenfilms"
-    },
-    {
       "id": 1,
       "slug": "madhouse",
-      "name": "Madhouse"
-    },
-    {
-      "id": 32,
-      "slug": "madhouse-2",
-      "name": "Madhouse"
-    },
-    {
-      "id": 33,
-      "slug": "madhouse-3",
-      "name": "Madhouse"
-    },
-    {
-      "id": 40,
-      "slug": "madhouse-4",
-      "name": "Madhouse"
-    },
-    {
-      "id": 43,
-      "slug": "madhouse-5",
       "name": "Madhouse"
     },
     {
@@ -522,42 +377,32 @@
       "name": "MAPPA"
     },
     {
-      "id": 9,
-      "slug": "mappa-2",
-      "name": "MAPPA"
-    },
-    {
-      "id": 72,
-      "slug": "mappa-3",
-      "name": "MAPPA"
-    },
-    {
-      "id": 23,
+      "id": 16,
       "slug": "olm",
       "name": "OLM"
     },
     {
-      "id": 62,
-      "slug": "olm-2",
-      "name": "OLM"
-    },
-    {
-      "id": 41,
+      "id": 23,
       "slug": "oniro",
       "name": "Oniro"
     },
     {
-      "id": 74,
+      "id": 46,
       "slug": "passione",
       "name": "Passione"
     },
     {
-      "id": 49,
+      "id": 29,
       "slug": "pierrot",
       "name": "Pierrot"
     },
     {
-      "id": 79,
+      "id": 19,
+      "slug": "point-pictures",
+      "name": "Point Pictures"
+    },
+    {
+      "id": 49,
       "slug": "polygon-pictures",
       "name": "Polygon Pictures"
     },
@@ -567,102 +412,87 @@
       "name": "Production I.G"
     },
     {
-      "id": 18,
-      "slug": "production-i-g-2",
-      "name": "Production I.G"
-    },
-    {
-      "id": 101,
+      "id": 61,
       "slug": "sanzigen",
       "name": "Sanzigen"
     },
     {
-      "id": 71,
+      "id": 44,
       "slug": "satelight",
       "name": "Satelight"
     },
     {
-      "id": 21,
+      "id": 15,
       "slug": "science-saru",
       "name": "Science SARU"
     },
     {
-      "id": 92,
+      "id": 57,
       "slug": "shogakukan-music-and-digital-entertainment",
       "name": "Shogakukan Music & Digital Entertainment"
     },
     {
-      "id": 93,
-      "slug": "shougakukan-music-and-digital-entertainment",
-      "name": "Shougakukan Music & Digital Entertainment ."
-    },
-    {
-      "id": 73,
+      "id": 45,
       "slug": "silver-link",
-      "name": "Silver Link."
+      "name": "Silver Link"
     },
     {
-      "id": 68,
+      "id": 42,
       "slug": "studio-a-cat",
       "name": "Studio A-Cat"
     },
     {
-      "id": 44,
+      "id": 24,
       "slug": "studio-chizu",
       "name": "Studio Chizu"
     },
     {
-      "id": 45,
+      "id": 25,
       "slug": "studio-comet",
       "name": "Studio Comet"
     },
     {
-      "id": 31,
+      "id": 20,
       "slug": "studio-deen",
       "name": "Studio Deen"
     },
     {
-      "id": 91,
+      "id": 56,
       "slug": "studio-hibari",
       "name": "Studio Hibari"
     },
     {
-      "id": 61,
+      "id": 38,
       "slug": "studio-kai",
       "name": "Studio Kai"
     },
     {
-      "id": 34,
+      "id": 21,
       "slug": "studio-live",
       "name": "Studio Live"
     },
     {
-      "id": 83,
+      "id": 52,
       "slug": "studio-mother",
       "name": "Studio Mother"
     },
     {
-      "id": 15,
+      "id": 11,
       "slug": "sunrise",
       "name": "Sunrise"
     },
     {
-      "id": 35,
-      "slug": "sunrise-2",
-      "name": "Sunrise"
-    },
-    {
-      "id": 66,
+      "id": 40,
       "slug": "synergysp",
       "name": "SynergySP"
     },
     {
-      "id": 77,
+      "id": 47,
       "slug": "tezuka-productions",
       "name": "Tezuka Productions"
     },
     {
-      "id": 46,
+      "id": 26,
       "slug": "tms-entertainment",
       "name": "TMS Entertainment"
     },
@@ -672,27 +502,12 @@
       "name": "Toei Animation"
     },
     {
-      "id": 53,
-      "slug": "toei-animation-2",
-      "name": "Toei Animation"
-    },
-    {
-      "id": 102,
-      "slug": "toei-animation-3",
-      "name": "Toei Animation"
-    },
-    {
-      "id": 95,
-      "slug": "toho-animation-studio-2",
+      "id": 17,
+      "slug": "toho-animation-studio",
       "name": "Toho Animation Studio"
     },
     {
-      "id": 24,
-      "slug": "toho-animation-studio",
-      "name": "Toho Animation Studio ."
-    },
-    {
-      "id": 100,
+      "id": 60,
       "slug": "trigger",
       "name": "Trigger"
     },
@@ -702,18 +517,8 @@
       "name": "ufotable"
     },
     {
-      "id": 14,
+      "id": 10,
       "slug": "white-fox",
-      "name": "White Fox"
-    },
-    {
-      "id": 30,
-      "slug": "white-fox-2",
-      "name": "White Fox"
-    },
-    {
-      "id": 65,
-      "slug": "white-fox-3",
       "name": "White Fox"
     },
     {
@@ -722,17 +527,7 @@
       "name": "WIT Studio"
     },
     {
-      "id": 8,
-      "slug": "wit-studio-2",
-      "name": "WIT Studio"
-    },
-    {
-      "id": 29,
-      "slug": "wit-studio-3",
-      "name": "WIT Studio"
-    },
-    {
-      "id": 58,
+      "id": 36,
       "slug": "zero-g",
       "name": "Zero-G"
     }
@@ -1136,7 +931,7 @@
       ],
       "studios": [
         "production-i-g",
-        "wit-studio-2"
+        "wit-studio"
       ],
       "streaming": [
         {
@@ -1207,7 +1002,7 @@
         "drama"
       ],
       "studios": [
-        "mappa-2"
+        "mappa"
       ],
       "streaming": [
         {
@@ -1278,7 +1073,7 @@
         "musik"
       ],
       "studios": [
-        "cloverworks-2"
+        "cloverworks"
       ],
       "streaming": [
         {
@@ -1349,8 +1144,7 @@
         "slice-of-life"
       ],
       "studios": [
-        "doga-kobo",
-        "doga-kobo-2"
+        "doga-kobo"
       ],
       "streaming": [
         {
@@ -1776,7 +1570,7 @@
         "olahraga"
       ],
       "studios": [
-        "production-i-g-2"
+        "production-i-g"
       ],
       "streaming": [
         {
@@ -1918,7 +1712,7 @@
         "drama"
       ],
       "studios": [
-        "comix-wave-films-2"
+        "comix-wave-films"
       ],
       "streaming": [
         {
@@ -2060,7 +1854,7 @@
         "fantasi"
       ],
       "studios": [
-        "a-1-pictures-2"
+        "a-1-pictures"
       ],
       "streaming": [
         {
@@ -2204,8 +1998,7 @@
       ],
       "studios": [
         "8bit",
-        "8-bit",
-        "8bit-2"
+        "point-pictures"
       ],
       "streaming": [
         {
@@ -2276,7 +2069,7 @@
         "fantasi"
       ],
       "studios": [
-        "bones-2"
+        "bones"
       ],
       "streaming": [
         {
@@ -2347,7 +2140,7 @@
         "romansa"
       ],
       "studios": [
-        "wit-studio-3"
+        "wit-studio"
       ],
       "streaming": [
         {
@@ -2418,7 +2211,7 @@
         "fantasi"
       ],
       "studios": [
-        "white-fox-2"
+        "white-fox"
       ],
       "streaming": [
         {
@@ -2560,7 +2353,7 @@
         "supernatural"
       ],
       "studios": [
-        "madhouse-2"
+        "madhouse"
       ],
       "streaming": [
         {
@@ -2631,7 +2424,7 @@
         "drama"
       ],
       "studios": [
-        "madhouse-3",
+        "madhouse",
         "studio-live"
       ],
       "streaming": [
@@ -2703,7 +2496,7 @@
         "fantasi"
       ],
       "studios": [
-        "sunrise-2"
+        "sunrise"
       ],
       "streaming": [
         {
@@ -2774,7 +2567,7 @@
         "drama"
       ],
       "studios": [
-        "bones-3"
+        "bones"
       ],
       "streaming": [
         {
@@ -2845,7 +2638,7 @@
         "fantasi"
       ],
       "studios": [
-        "comix-wave-films-3"
+        "comix-wave-films"
       ],
       "streaming": [
         {
@@ -2987,7 +2780,7 @@
         "psikologis"
       ],
       "studios": [
-        "kyoto-animation-2"
+        "kyoto-animation"
       ],
       "streaming": [
         {
@@ -3058,7 +2851,7 @@
         "musik"
       ],
       "studios": [
-        "madhouse-4",
+        "madhouse",
         "oniro"
       ],
       "streaming": [
@@ -3130,9 +2923,8 @@
         "slice-of-life"
       ],
       "studios": [
-        "chizu",
-        "madhouse-5",
-        "studio-chizu"
+        "studio-chizu",
+        "madhouse"
       ],
       "streaming": [
         {
@@ -3570,7 +3362,7 @@
         "aksi"
       ],
       "studios": [
-        "kinema-citrus-2"
+        "kinema-citrus"
       ],
       "streaming": [
         {
@@ -3859,7 +3651,7 @@
         "fantasi"
       ],
       "studios": [
-        "toei-animation-2"
+        "toei-animation"
       ],
       "streaming": [
         {
@@ -4373,7 +4165,7 @@
         "romansa"
       ],
       "studios": [
-        "arvo-animation-2"
+        "arvo-animation"
       ],
       "streaming": [
         {
@@ -4596,7 +4388,7 @@
         "slice-of-life"
       ],
       "studios": [
-        "olm-2"
+        "olm"
       ],
       "streaming": [
         {
@@ -4742,7 +4534,7 @@
         "fantasi"
       ],
       "studios": [
-        "konami-animation-2"
+        "konami-animation"
       ],
       "streaming": [
         {
@@ -4899,7 +4691,7 @@
         "fantasi"
       ],
       "studios": [
-        "white-fox-3"
+        "white-fox"
       ],
       "streaming": [
         {
@@ -5272,8 +5064,7 @@
         "slice-of-life"
       ],
       "studios": [
-        "liden-films",
-        "lidenfilms"
+        "liden-films"
       ],
       "streaming": [
         {
@@ -5422,7 +5213,7 @@
         "sekolah"
       ],
       "studios": [
-        "mappa-3"
+        "mappa"
       ],
       "streaming": [
         {
@@ -5655,8 +5446,8 @@
         "fantasi"
       ],
       "studios": [
-        "aisle-2",
-        "bridge-2"
+        "aisle",
+        "bridge"
       ],
       "streaming": [
         {
@@ -6030,7 +5821,7 @@
         "isekai"
       ],
       "studios": [
-        "j-c-staff-2"
+        "j-c-staff"
       ],
       "streaming": [
         {
@@ -6259,8 +6050,7 @@
         "fantasi"
       ],
       "studios": [
-        "felix-film",
-        "felixfilm"
+        "felix-film"
       ],
       "streaming": [
         {
@@ -6492,7 +6282,7 @@
         "sci-fi"
       ],
       "studios": [
-        "j-c-staff-3"
+        "j-c-staff"
       ],
       "streaming": [
         {
@@ -6571,8 +6361,7 @@
         "sci-fi"
       ],
       "studios": [
-        "liden-films-2",
-        "lidenfilms-2"
+        "liden-films"
       ],
       "streaming": [
         {
@@ -6715,8 +6504,7 @@
         "supernatural"
       ],
       "studios": [
-        "shogakukan-music-and-digital-entertainment",
-        "shougakukan-music-and-digital-entertainment"
+        "shogakukan-music-and-digital-entertainment"
       ],
       "streaming": [
         {
@@ -6874,7 +6662,7 @@
         "slice-of-life"
       ],
       "studios": [
-        "toho-animation-studio-2"
+        "toho-animation-studio"
       ],
       "streaming": [
         {
@@ -6945,7 +6733,7 @@
         "drama"
       ],
       "studios": [
-        "kinema-citrus-3"
+        "kinema-citrus"
       ],
       "streaming": [
         {
@@ -7075,7 +6863,7 @@
         "musik"
       ],
       "studios": [
-        "kyoto-animation-3"
+        "kyoto-animation"
       ],
       "streaming": [
         {
@@ -7142,7 +6930,7 @@
         "slice-of-life"
       ],
       "studios": [
-        "cloverworks-3"
+        "cloverworks"
       ],
       "streaming": [
         {
@@ -7353,7 +7141,7 @@
         "mecha"
       ],
       "studios": [
-        "toei-animation-3"
+        "toei-animation"
       ],
       "streaming": [
         {

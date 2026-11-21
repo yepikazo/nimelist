@@ -1,5 +1,7 @@
 # 10 — Roadmap
 
+> **Architecture revision (21 Nov 2026):** The assignment requires microservices. This supersedes earlier tasks that described one web app plus a worker. The current repo is still a Next.js/SQLite beta; the revised critical path is service contracts → Catalog/Schedule APIs and owned databases → Search API → Ingestion worker → Next.js migration → three-server deployment. Estimates below are planning placeholders and must be re-estimated for the service split.
+
 ## 1. Assumptions
 
 | Assumption | Value |
@@ -7,13 +9,13 @@
 | Team | 2–3 people: 1 full-stack/backend, 1 frontend/design, 1 part-time curator/editor |
 | Capacity | ~2.5 FTE, 5 days/week |
 | Launch shape | 4–6 week **schedule MVP** (no accounts at public launch) |
-| Hosting | 2 GB / 10 GB laptop for private beta; VPS before public launch |
-| Data | ODbL seed + manual curation; AniList disabled until written permission |
+| Hosting | Three servers: public web edge, private domain APIs/data, provider ingestion/operations |
+| Data | ODbL seed + manual curation; Jikan public API discontinued; other providers gated by their terms |
 | Language | Indonesian only |
 | Monetization | None at launch |
-| Search | Postgres FTS; Meilisearch later |
+| Search | Independent Search Service; PostgreSQL FTS first, Meilisearch optional |
 
-**Reality check:** the full product (catalog + accounts + watchlist + reviews + moderation + premium) is ~80–110 person-days. The 4–6 week schedule MVP is ~35–45 person-days. The difference is deliberate: launch the information product, then add accounts.
+**Reality check:** microservices add API contracts, deployment, observability, and data ownership work. Keep the required service set small and re-estimate the earlier 4–6 week schedule MVP before committing to its date.
 
 ### Phase mapping note
 
@@ -39,25 +41,24 @@ The original brief puts “auth + watchlist + schedule” in Phase 2. Because th
 
 ### 2.2 Repository and tooling
 
-- [ ] Convert to npm workspaces (`apps/web`, `apps/worker`, `packages/*`) — **1 d**
-- [ ] Add `packages/config` with shared tsconfig/eslint — **0.5 d**
-- [ ] Add Zod env validation (`env.ts`) for web and worker — **0.5 d**
+- [ ] Convert to npm workspaces (`apps/web`, `services/catalog`, `services/schedule`, `services/search`, `services/ingestion`, `packages/contracts`) — **2 d**
+- [ ] Define OpenAPI/DTO and versioned event contracts; generate or validate clients — **1.5 d**
+- [ ] Add shared lint/tsconfig and service-specific Zod environment validation — **1 d**
 - [ ] Add Prettier + import sorting + lint-staged (optional, low cost) — **0.25 d**
 - [ ] Add Vitest + Testing Library; one smoke test — **0.5 d**
 - [ ] Add Playwright for one critical flow (home → detail) — **0.5 d**
 - [ ] Add GitHub Actions: install, lint, typecheck, test, build — **1 d**
-- [ ] Add Dockerfiles for web (standalone) and worker — **1 d**
-- [ ] Add `compose.lean.yml` with Caddy, web, Postgres, Redis, worker, scheduler — **1 d**
-- [ ] Add Cloudflare Tunnel config — **0.5 d**
+- [ ] Add one Dockerfile and health endpoint per independently deployed service — **2 d**
+- [ ] Add separate Compose deployment files for Servers 1, 2, and 3 plus private-network config — **1.5 d**
+- [ ] Add API gateway/reverse proxy routing, service-to-service credentials, and private DNS — **1 d**
 - [ ] Add `.env.example` and secret generation script — **0.25 d**
 
-### 2.3 Database and seed
+### 2.3 Service data ownership and seed
 
-- [ ] Pin Prisma `7.10.1`; init `packages/db` — **0.25 d**
-- [ ] Create initial schema: media, external_id, genre, studio, streaming, schedule — **2 d**
-- [ ] Add extensions (`citext`, `pg_trgm`, `unaccent`) and raw SQL indexes — **0.5 d**
-- [ ] Download ODbL dump; write streaming parser + batch upsert — **2 d**
-- [ ] Seed 41k media; measure time and DB size — **1 d**
+- [ ] Create Catalog-owned and Schedule-owned PostgreSQL databases/schemas, roles, and migration histories — **2 d**
+- [ ] Create Ingestion sync-state database and Search-owned projection/index — **1 d**
+- [ ] Implement ODbL seed importer in Ingestion; send normalized data through Catalog API — **2 d**
+- [ ] Seed catalog and schedule; measure import time, DB size, and API latency — **1 d**
 - [ ] Data-quality report: titles, missing seasons, duplicate external IDs — **0.5 d**
 
 ### 2.4 Design and shell
@@ -70,10 +71,14 @@ The original brief puts “auth + watchlist + schedule” in Phase 2. Because th
 
 ### Phase 0 exit criteria
 
-- [ ] `docker compose up` serves a Next page on the laptop.
+- [ ] Each initial service starts independently and exposes a health endpoint.
+- [ ] No service reads or writes another service's database directly.
+- [ ] A seed import flows through Ingestion → Catalog API and is idempotent.
+- [ ] Next.js reads Catalog, Schedule, and Search through private API clients.
+- [ ] Three host deployment files enforce the private network boundary.
 - [ ] CI is green on `main`.
-- [ ] Postgres contains ≥ 40k media rows; seed is idempotent.
-- [ ] AniList request is sent; decision date recorded.
+- [ ] PostgreSQL contains the catalog seed; restore test completed from off-host backup.
+- [ ] Jikan public API is not configured as a dependency; provider decision and terms are recorded.
 - [ ] A backup has been taken and restored once.
 
 **Phase 0 estimate:** 18–22 person-days.
@@ -205,7 +210,7 @@ The original brief puts “auth + watchlist + schedule” in Phase 2. Because th
 
 ---
 
-## 5. Phase 3 — SEO, monitoring, soft launch (Week 6)
+## 5. Phase 3 — SEO, monitoring, three-server rollout (Week 6+)
 
 **Goal:** public beta on a stable host, measurable, backed up, legally covered.
 
@@ -249,7 +254,8 @@ The original brief puts “auth + watchlist + schedule” in Phase 2. Because th
 
 ### 5.5 Launch gate
 
-- [ ] Move to a 4 GB VPS **or** explicitly accept private-beta-only reliability — **0.5 d**
+- [ ] Deploy the web, domain API/data, and ingestion/operations groups to their assigned servers — **1 d**
+- [ ] Verify private network isolation and external backup/restore — **1 d**
 - [ ] Cloudflare DNS/Tunnel cutover — **0.5 d**
 - [ ] Final smoke test on production — **0.5 d**
 - [ ] Invite 20–50 beta users; collect feedback — **1 d**

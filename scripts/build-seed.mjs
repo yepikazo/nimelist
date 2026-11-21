@@ -430,7 +430,6 @@ const FALL_PICKS = [
   "Black Clover 2nd Season",
   "Cardfight!! Vanguard: Divinez Unmei Seisen-hen",
   "Choujun! Choujou-senpai",
-  "Dark Summoner to Dekiteiru",
   "Dia no Ace: Act II Second Season Dai 2 Cour",
   "Doumo, Suki na Hito ni Horegusuri o Irai Sareta Majo desu.",
   "Dragon Ball Super: Beerus",
@@ -524,6 +523,8 @@ const STUDIO_NAMES = new Map([
   ["david production inc.", "David Production"],
   ["liden films", "Liden Films"],
   ["liden films inc.", "Liden Films"],
+  ["lidenfilms", "Liden Films"],
+  ["lidenfilms inc.", "Liden Films"],
   ["polygon pictures", "Polygon Pictures"],
   ["polygon pictures inc.", "Polygon Pictures"],
   ["p.a. works", "P.A. Works"],
@@ -531,11 +532,13 @@ const STUDIO_NAMES = new Map([
   ["studio deen", "Studio Deen"],
   ["studio deen co., ltd.", "Studio Deen"],
   ["8 bit", "8bit"],
+  ["8-bit", "8bit"],
+  ["eightbit", "8bit"],
   ["kinema citrus", "Kinema Citrus"],
   ["kinema citrus co., ltd.", "Kinema Citrus"],
   ["shin-ei animation", "Shin-Ei Animation"],
   ["shin-ei animation co., ltd.", "Shin-Ei Animation"],
-  ["silver link.", "Silver Link."],
+  ["silver link.", "Silver Link"],
   ["passione", "Passione"],
   ["passione co., ltd.", "Passione"],
   ["tezuka productions", "Tezuka Productions"],
@@ -553,6 +556,8 @@ const STUDIO_NAMES = new Map([
   ["satelight", "Satelight"],
   ["doga kobo", "Doga Kobo"],
   ["doga kobo inc.", "Doga Kobo"],
+  ["dōga kōbō", "Doga Kobo"],
+  ["dōga kōbō inc.", "Doga Kobo"],
   ["actas", "Actas"],
   ["tms entertainment", "TMS Entertainment"],
   ["tms entertainment co., ltd.", "TMS Entertainment"],
@@ -567,6 +572,7 @@ const STUDIO_NAMES = new Map([
   ["aisle co., ltd.", "Aisle"],
   ["cue co., ltd.", "CUE"],
   ["felix film", "Felix Film"],
+  ["felixfilm", "Felix Film"],
   ["c2c co., ltd.", "C2C"],
   ["c2c", "C2C"],
   ["jumondou co., ltd.", "Jumondou"],
@@ -583,6 +589,11 @@ const STUDIO_NAMES = new Map([
   ["tecarat", "Tecarat"],
   ["east fish studio lnc.", "East Fish Studio"],
   ["shogakukan music & digital entertainment", "Shogakukan Music & Digital Entertainment"],
+  ["shougakukan music & digital entertainment", "Shogakukan Music & Digital Entertainment"],
+  ["shougakukan music & digital entertainment co., ltd.", "Shogakukan Music & Digital Entertainment"],
+  ["chizu", "Studio Chizu"],
+  ["chizu, inc.", "Studio Chizu"],
+  ["studio chizu", "Studio Chizu"],
   ["kayac animation", "KAYAC Animation"],
   ["synergysp co. ,ltd.", "SynergySP"],
   ["synergy sp", "SynergySP"],
@@ -623,6 +634,7 @@ function titleCaseStudio(name) {
   if (STUDIO_NAMES.has(key)) return STUDIO_NAMES.get(key);
   const cleaned = name
     .replace(/\b(co\.,? ?ltd\.?|inc\.?|llc|corporation|corp\.?)\b/gi, "")
+    .replace(/[\s,.;:]+$/g, "")
     .replace(/\s+/g, " ")
     .trim();
   return cleaned
@@ -674,6 +686,7 @@ function mediaStatus(entry, currentSeason) {
 const usedSlugs = new Set();
 const usedStudioSlugs = new Set();
 const studiosBySlug = new Map();
+const studiosByName = new Map();
 const media = [];
 
 function addMedia(entry, curated) {
@@ -693,11 +706,15 @@ function addMedia(entry, curated) {
   const studioNames = [...new Set((entry.studios ?? []).map(titleCaseStudio))].filter(Boolean).slice(0, 3);
   const studioSlugs = [];
   for (const name of studioNames) {
-    const studioSlug = uniqueSlug(slugify(name), usedStudioSlugs);
-    if (!studiosBySlug.has(studioSlug)) {
-      studiosBySlug.set(studioSlug, { slug: studioSlug, name });
+    const studioKey = name.toLowerCase();
+    let studio = studiosByName.get(studioKey);
+    if (!studio) {
+      const studioSlug = uniqueSlug(slugify(name), usedStudioSlugs);
+      studio = { slug: studioSlug, name };
+      studiosByName.set(studioKey, studio);
+      studiosBySlug.set(studioSlug, studio);
     }
-    studioSlugs.push(studioSlug);
+    studioSlugs.push(studio.slug);
   }
 
   const platformSlugs = curated

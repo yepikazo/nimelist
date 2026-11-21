@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nimelist:contracts:events:catalog-media-changed:1.0.0",
+  "title": "catalog.media.changed",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventId", "eventType", "eventVersion", "occurredAt", "mediaId", "changedFields"],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "eventType": { "const": "catalog.media.changed" },
+    "eventVersion": { "const": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "mediaId": { "type": "string", "minLength": 1 },
+    "changedFields": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "traceId": { "type": "string" }
+  }
+}

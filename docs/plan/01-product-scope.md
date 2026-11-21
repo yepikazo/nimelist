@@ -155,7 +155,7 @@ Because the chosen launch is a **4–6 week schedule MVP**, the launch scope is 
 ### Post-MVP sequence
 
 1. **Phase 2:** Better Auth, watchlist, progress, ratings, profile, privacy.
-2. **Phase 3:** SEO hardening, monitoring, soft launch, VPS migration.
+2. **Phase 3:** SEO hardening, monitoring, soft launch, and three-server deployment.
 3. **Phase 4:** Reviews, follow, moderation, notifications, import/sync, Meilisearch, ads/premium.
 
 ---
@@ -237,7 +237,7 @@ Nimelist will **not**:
 6. Offer a public API for third parties at launch.
 7. Store AniList API data without written permission.
 8. Use machine translation of copyrighted synopses as published content.
-9. Run microservices, Kubernetes, or a service mesh for a 2–3 person team.
+9. Split the product into many tiny services without a clear domain boundary. The assignment requires microservices, so use a small set of independently deployable domain services rather than a service mesh or one service per feature.
 10. Optimise for “nonton [judul] sub indo” piracy intent. Nimelist targets information and legal availability.
 
 ---
@@ -318,5 +318,5 @@ Nimelist will **not**:
 | ODbL seed is legally usable with attribution/share-alike | Legal review; publish attribution and derived DB offer | Week 1 |
 | 50–80 current-season titles can be curated in < 3 h/week | Time the first two weeks | Week 3 |
 | Users will click legal streaming links | Track outbound clicks from day one | Week 6 |
-| Laptop can serve beta traffic | Load test + uptime monitor | Week 4 |
+| Three-server deployment can meet the expected load and private-network requirements | Measure service resource use, API latency, and network isolation | Before public launch |
 | 4–6 weeks is enough for the narrow MVP | Track Phase 1 exit criteria weekly | Week 4 |

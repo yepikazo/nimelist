@@ -212,8 +212,8 @@ app/
   - All season pages from 2000 to next year.
   - All genres, studios with ≥ 3 media, active platforms.
 - Unknown slugs: App Shell + background upgrade (Partial Prefetching), then cached.
-- Do **not** prerender all 41k media at build; it would blow the 2 GB laptop and CI time.
-- Use `generateStaticParams` with a DB query at build. Build runs in GitHub Actions, not on the laptop.
+- Do **not** prerender all 41k media at build; it would increase build time and artifact size without a clear SEO benefit.
+- Use `generateStaticParams` with a read-only Catalog API query at build. The build pipeline receives scoped internal credentials; it never connects directly to service databases.
 
 ### 4.5 Dynamic holes
 
@@ -230,21 +230,37 @@ app/
 
 ```mermaid
 sequenceDiagram
-  participant W as Worker
-  participant DB as Postgres
+  participant W as Ingestion worker
+  participant C as Catalog API
+  participant S as Schedule API
+  participant Q as Event queue
+  participant DB as Service-owned Postgres databases
   participant API as /api/internal/revalidate
   participant N as Next cache
-  W->>DB: upsert media/schedule/streaming
-  W->>DB: insert outbox(tags)
-  W->>API: POST {tags} + HMAC
+  W->>C: normalized catalog update
+  C->>DB: write catalog-owned data + outbox
+  C->>Q: catalog.media.changed
+  W->>S: schedule update
+  S->>DB: write schedule-owned data + outbox
+  S->>Q: schedule.changed
+  Q->>API: POST {tags} + HMAC
   API->>N: revalidateTag(tag, 'max')
-  N-->>W: 200
+  N-->>Q: 200
 ```
 
-- Worker batches tags and coalesces for 30 seconds.
+- The service that owns a record is the only writer to its database. Ingestion calls domain APIs; it does not connect to domain databases.
+- Events update the Search Service index and trigger web-cache invalidation; consumers are idempotent and retryable.
+- Coalesce revalidation tags for 30 seconds to avoid repeated invalidation.
 - HMAC secret + `X-Internal-Token`; route rejects non-private IPs.
 - Idempotent; safe to retry.
-- If the app is down, outbox retries with backoff; sitemaps and pages revalidate on next request anyway.
+- If the web app is down, domain data remains committed; revalidation retries with backoff and cached pages refresh on a later request.
+
+### 4.7 Web-to-service data access
+
+- Next.js uses typed internal clients for Catalog, Schedule, and Search APIs; page components must not import service repositories or database clients.
+- The BFF may compose small read responses, but it does not own catalog or schedule rules.
+- Internal API calls use private DNS, short timeouts, request IDs, and bounded retries. Public SEO pages degrade with cached/stale data when an internal API is temporarily unavailable.
+- Each service owns API schemas and migrations. Shared contracts define DTO/event shapes only.
 
 ---
 

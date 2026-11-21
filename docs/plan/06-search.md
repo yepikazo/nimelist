@@ -5,8 +5,8 @@
 - A user types a half-remembered title in romaji, English, or Indonesian and finds it in the first three results.
 - Typos and spacing variants do not produce an empty page.
 - Filters (season, genre, platform, status) are fast and shareable via URL.
-- Search is cheap enough to run on a 2 GB laptop at launch.
-- The design can move to Meilisearch without changing the UI or API contract.
+- Search runs as an independently deployable Search Service because the assignment requires microservices.
+- The design can move from PostgreSQL FTS to Meilisearch without changing the UI or Search API contract.
 
 ### Non-goals
 
@@ -17,19 +17,21 @@
 
 ---
 
-## 2. Decision: Postgres FTS for MVP, Meilisearch later
+## 2. Decision: Search Service with PostgreSQL FTS first, Meilisearch optional
 
-| Option | Pros | Cons | Fit for 2 GB laptop |
+| Option | Pros | Cons | Fit for three-server target |
 |---|---|---|---|
-| **Postgres FTS + pg_trgm** | No new service; transactional; one backup; good enough for 41k rows; familiar SQL | Weaker typo tolerance; no built-in facets/ranking UI; Indonesian stemming not built in | **Best** |
-| **Meilisearch** | Excellent typo tolerance, fast facets, simple API, good relevance defaults, easy index rebuild | ~150–250 MB RAM; another service; eventual consistency; sync pipeline | Good on 4 GB VPS; tight on 2 GB |
+| **Postgres FTS + pg_trgm** | No extra search engine; familiar SQL; good enough for 41k rows | Weaker typo tolerance; Indonesian stemming not built in; still needs a separately deployed Search API | **Initial backend** |
+| **Meilisearch** | Excellent typo tolerance, fast facets, simple API, good relevance defaults, easy index rebuild | Another service; eventual consistency; sync pipeline and memory needs | Fits if Server 2 has measured headroom |
 | **Typesense** | Fast, strong filtering, vector support, good clustering | Another service; relevance tuning is more manual; similar RAM cost | Good on VPS |
 
-**Recommendation:** ship the MVP on **Postgres FTS + trigram**, keep the search API contract stable, and add **Meilisearch** when the site moves to a VPS (Phase 3/4) or when typo complaints justify it. Do not run both at launch.
+**Recommendation:** ship the Search Service with **PostgreSQL FTS + trigram** as its first backend. The Search Service owns its search projection and API; Catalog remains the source of truth. Add Meilisearch behind the same API when relevance or latency measurements justify it. Do not make the web app query either search datastore directly.
 
 ---
 
-## 3. Postgres implementation (MVP)
+## 3. Search Service with PostgreSQL FTS backend (initial release)
+
+The SQL examples in this section run against a Search Service-owned projection/database, not Catalog Service tables. Search documents are populated from Catalog/Schedule APIs and change events. Catalog remains the source of truth; Search can rebuild its projection at any time.
 
 ### 3.1 Data shape
 
@@ -196,11 +198,11 @@ Response:
 }
 ```
 
-The UI must not depend on Postgres or Meilisearch-specific fields. The web app calls an internal `searchMedia()` function; only that function changes when Meilisearch is added.
+The UI must not depend on Postgres or Meilisearch-specific fields. Next.js calls the Search Service API through a typed client; the Search Service adapter changes when Meilisearch is added.
 
 ### 3.8 Performance
 
-- Target p95 < 80 ms for a 20-result query on the laptop.
+- Target p95 < 80 ms for a 20-result query on the Server 2 baseline; measure under representative load.
 - Use `EXPLAIN (ANALYZE, BUFFERS)` on the top 10 queries; add indexes only when measured.
 - Cap `page * pageSize` at 1,000; deeper pages are rare and expensive.
 - Cache the first page of popular queries in Redis for 60 seconds.
@@ -333,7 +335,7 @@ The UI must not depend on Postgres or Meilisearch-specific fields. The web app c
 
 ```mermaid
 flowchart LR
-  DB[(Postgres)] -->|outbox INDEX| Q[search:index queue]
+  CAT[Catalog API / change events] -->|catalog.media.changed| Q[search:index queue]
   Q --> B[Batch 500 docs]
   B --> MS[(Meilisearch media)]
   DB -->|nightly full| R[Reindex media_v2]
@@ -346,7 +348,7 @@ flowchart LR
 - Full reindex: build `media_v2` with settings, wait for `status = processed`, swap `media_v2` → `media`, then delete the old index. Zero downtime.
 - Settings changes are versioned in code; apply before the swap.
 - Monitor `numberOfDocuments`, `isIndexing`, `fieldDistribution`, and search latency.
-- If Meilisearch is unavailable, fall back to Postgres FTS. The UI does not show an error unless both fail.
+- If Meilisearch is unavailable, Search Service falls back to its PostgreSQL FTS backend. The UI does not connect directly to either datastore.
 
 ---
 

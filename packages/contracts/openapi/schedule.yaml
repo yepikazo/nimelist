@@ -1,0 +1,109 @@
+openapi: 3.1.0
+info:
+  title: Nimelist Schedule Service
+  version: 1.0.0
+servers:
+  - url: http://schedule:4102
+paths:
+  /v1/schedule/{date}:
+    get:
+      operationId: getScheduleForDate
+      summary: Ambil jadwal anime untuk tanggal WIB.
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Jadwal harian.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [date, timezone, items]
+                properties:
+                  date: { type: string, format: date }
+                  timezone: { type: string, const: Asia/Jakarta }
+                  items: { type: array, items: { $ref: "#/components/schemas/ScheduleItem" } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /internal/v1/slots:
+    put:
+      operationId: upsertScheduleSlot
+      summary: Buat atau perbarui slot tayang kurasi.
+      security: [{ serviceToken: [] }]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScheduleSlotInput" }
+      responses:
+        "200":
+          description: Slot tersimpan.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [slotId, status]
+                properties:
+                  slotId: { type: string }
+                  status: { type: string, enum: [created, updated, unchanged] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+components:
+  securitySchemes:
+    serviceToken:
+      type: http
+      scheme: bearer
+  schemas:
+    ScheduleItem:
+      type: object
+      required: [mediaId, slug, title, episodeNumber, date, timeWib, confidence]
+      properties:
+        mediaId: { type: string }
+        slug: { type: string }
+        title: { type: string }
+        episodeNumber: { type: integer, minimum: 1 }
+        date: { type: string, format: date }
+        timeWib: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        confidence: { type: string, enum: [CONFIRMED, ESTIMATED, DELAYED, CANCELLED] }
+        sourceUrl: { type: [string, "null"], format: uri }
+    ScheduleSlotInput:
+      type: object
+      required: [mediaId, dayOfWeek, timeWib, baseDate, baseEpisode, confidence, source]
+      properties:
+        mediaId: { type: string, minLength: 1 }
+        dayOfWeek: { type: integer, minimum: 1, maximum: 7 }
+        timeWib: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        baseDate: { type: string, format: date }
+        baseEpisode: { type: integer, minimum: 1 }
+        episodes: { type: [integer, "null"], minimum: 1 }
+        confidence: { type: string, enum: [CONFIRMED, ESTIMATED] }
+        source: { type: string, enum: [OFFICIAL_SITE, PLATFORM, MANUAL, PROVIDER] }
+        sourceUrl: { type: [string, "null"], format: uri }
+    ApiError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+  responses:
+    BadRequest:
+      description: Parameter atau body tidak valid.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }
+    Unauthorized:
+      description: Kredensial service tidak valid.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }

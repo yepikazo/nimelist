@@ -1,8 +1,8 @@
 # Nimelist — Application Design Plan
 
-**Version:** 1.0 (planning draft)
-**Date:** 9 November 2026
-**Status:** Ready for review; implementation not started
+**Version:** 1.1 (architecture revision)
+**Date:** 21 November 2026
+**Status:** Architecture revised 21 Nov 2026; existing beta implementation is a monolith and has not yet been split into services
 **Scope:** Product, information architecture, UX, data model, sync, search, auth/community, infrastructure, security/legal, roadmap
 
 ---
@@ -30,7 +30,7 @@ It is **not** a streaming site. It must never host video, embed pirate players, 
 
 ---
 
-## 2. Current project state (inspected 9 Nov 2026)
+## 2. Current project state (repo inspected 21 Nov 2026)
 
 | Area | Current state |
 |---|---|
@@ -40,8 +40,10 @@ It is **not** a streaming site. It must never host video, embed pirate players, 
 | Lint | ESLint 9 flat config; `eslint-config-next` core-web-vitals + TypeScript |
 | Package manager | **npm 11.16.0**, `package-lock.json` |
 | Runtime | Node 26.4.0 |
-| App code | Default `app/layout.tsx`, `app/page.tsx`, `app/globals.css` only |
-| Missing | No `components/`, database, auth, tests, Docker, CI, env validation, shadcn/ui |
+| App code | Beta catalog, schedule, detail, taxonomy, legal pages, sitemap and health route |
+| Data | Local SQLite via `node:sqlite`, seeded from `data/seed.json`; no production PostgreSQL yet |
+| Data access | Next.js reads SQLite through `lib/repository.ts`; no service APIs yet |
+| Missing | No microservice applications, PostgreSQL deployment, message broker, Docker, CI, auth, or admin service |
 | Next config | `cacheComponents: true`, `partialPrefetching: true`, `experimental.agentFeedback`, Turbopack CSS rule |
 | Git | One initial commit (`7ebdacf`), no remote configured |
 
@@ -67,48 +69,50 @@ These are the answers from the planning questions, plus the assumptions needed t
 
 | Decision | Choice | Consequence |
 |---|---|---|
-| Data source legality | **Request written AniList permission** | No AniList ingestion until approval. Launch on ODbL seed + manual curation. |
+| Data source | **ODbL seed + manual curation; provider adapters only after terms review** | Jikan public API was discontinued 1 Oct 2026. Do not depend on it. AniList remains disabled pending written permission. |
 | Team | **2–3 people** | One full-stack dev, one frontend/design, one part-time curator/editor |
 | Launch shape | **4–6 week schedule MVP** | Public catalog + schedule + legal streaming + SEO. No accounts at public launch. |
-| Hosting | **Laptop, 2 GB RAM / 10 GB disk, free budget** | Lean profile: no Meilisearch at launch, no self-hosted Sentry/Uptime Kuma, build in CI |
+| Hosting | **Three servers** | Server 1 web edge; Server 2 private APIs/data; Server 3 ingestion and operations. See `08-architecture-infra.md`. |
 | Language | **Indonesian only** | `lang="id"`, `og:locale=id_ID`, one canonical URL set, no hreflang at launch |
 | Indonesian content | **AI draft + human edit** | Original summaries, never raw machine translation of copyrighted synopses |
 | Monetization | **No ads until traffic** | Affiliate links to legal platforms later; protect Core Web Vitals |
 | Auth | **Better Auth 1.7.x** | Stable, Next 16 support, Prisma 7 support, email OTP + Google/Discord |
-| Search | **Postgres FTS for MVP; Meilisearch target** | Fits 2 GB RAM; upgrade when moving to a VPS |
-| Repo | **Single repo, npm workspaces, no Turborepo** | `apps/web`, `apps/worker`, shared packages |
+| Search | **Independent Search Service; PostgreSQL FTS first, Meilisearch when justified** | Keep its API stable and its index rebuildable |
+| Architecture | **Microservices are required by the project assignment** | Start with Catalog, Schedule, Search, and Ingestion services; each owns its data/API |
+| Repo | **Single repo with independently deployable workspaces** | `apps/web`, `services/*`, shared contracts; no service imports another service's internals |
 
 ### Why these choices
 
 **Prisma 7.10.1 over Drizzle.** Prisma wins for a small team with a relational schema this size: generated client, migration workflow, relations, and Studio. Drizzle is lighter and closer to SQL, but its migration/relations tooling costs more hand-holding. Pin `prisma@7.10.1` and `@prisma/client@7.10.1`; the npm `latest` tag currently points at an 8.0 release candidate, which is not appropriate for launch.
 
-**Postgres FTS at launch, Meilisearch later.** 41k media rows is small. Postgres `tsvector` + `pg_trgm` gives adequate search with zero extra RAM. Meilisearch adds typo tolerance and facets, but costs ~150–250 MB RAM and another service to back up. The 2 GB laptop cannot comfortably run build + Next + Postgres + Redis + Meilisearch + worker. Add Meilisearch in Phase 2/3 on a VPS.
+**Search is an independent service.** Start its backend with PostgreSQL FTS + `pg_trgm` and add Meilisearch only if measured search quality or latency needs it. The Search API contract should stay stable when its backend changes.
 
 **Better Auth over Auth.js v5.** Auth.js v5 is still `5.0.0-beta.32`; Next 16 is current. Better Auth 1.7.x explicitly supports Next 16, React 19, Prisma 7, email OTP, OAuth, admin, and rate limiting. If the team insists on Auth.js, pin the beta and run a one-day spike before committing.
 
-**Modular monolith + worker, not microservices.** One deployable web app, one worker process, one scheduler. Clear boundaries (`web`, `worker`, `packages/db`, `packages/providers`) without network hops, distributed tracing, or service discovery. Microservices would be over-engineering for 2–3 people.
+**Microservices with narrow boundaries.** The assignment requires independently deployable services. Use Catalog, Schedule, Search, and Ingestion as the first domain services, with Next.js as the web client/BFF. Keep services few, define HTTP/event contracts, and assign data ownership. Avoid splitting trivial features into separate services.
 
 **ODbL seed + manual curation for launch.** AniList may not grant permission before Week 6. The MVP must be shippable without it. `anime-offline-database` gives a 41k-entry catalog under ODbL; current-season schedule and Indonesian streaming availability are curated manually for ~50–80 titles. This is also a genuine differentiator: accurate local data beats a bulk mirror.
 
-**No separate worker server at launch.** The worker runs in the same Docker Compose on the laptop. Server 3 is the target profile after public validation.
+**Three-server target.** Server 1 hosts the public web edge; Server 2 hosts private data and domain APIs; Server 3 hosts provider ingestion, workers, and secured curation tools. Jikan's public endpoint is unavailable; self-hosting Jikan is an optional, separately sized provider adapter, not a launch dependency.
 
 ---
 
 ## 4. Launch profile vs target profile
 
-| Concern | Launch (laptop) | Target (3 servers) |
+| Concern | Existing beta (local) | Target (3 servers) |
 |---|---|---|
-| Web | Next standalone in Docker | Server 1: Caddy + Next |
-| Database | Postgres on same host | Server 2: private Postgres |
-| Queue | Redis 64 MB, BullMQ | Server 2: Redis |
-| Search | Postgres FTS/trigram | Server 2: Meilisearch |
-| Worker | Same host, resource-limited | Server 3: BullMQ worker + scheduler |
+| Web | Next standalone in Docker | Server 1: Caddy + Next.js web/BFF |
+| Domain APIs | In-process repository | Server 2: Catalog + Schedule + Search services |
+| Database | SQLite local | Server 2: private PostgreSQL with per-service databases/roles |
+| Queue | None | Server 2: private Redis/BullMQ or RabbitMQ |
+| Search | SQLite queries | Server 2: Search API; PostgreSQL FTS first, Meilisearch optional |
+| Ingestion | Seed build script | Server 3: provider adapter + worker + scheduler |
 | Monitoring | Sentry SaaS free + external uptime check | Sentry + Uptime Kuma on Server 3 |
 | Backups | `pg_dump` to Cloudflare R2 free tier | Daily R2 + weekly restore test |
 | Exposure | Cloudflare Tunnel (no open ports) | Cloudflare → Caddy → Next |
 | Public launch suitability | Private beta only | Public launch |
 
-**Hard truth:** a 2 GB laptop with a home ISP is acceptable for a private beta and early SEO testing. It is not a reliable public production host. The plan includes a **Phase 3 gate**: move to a ~$5/month 4 GB VPS before public launch, or accept downtime and data-loss risk. The code and Compose files stay the same; only the host changes.
+The existing local SQLite beta is a development/preview environment. The three-server deployment is the target for the assignment. It is not automatically highly available: each critical service has one instance until redundancy is explicitly added.
 
 ---
 
@@ -120,17 +124,18 @@ flowchart LR
   CF --> TUN[Cloudflare Tunnel]
   TUN --> CAD[Caddy]
   CAD --> WEB[Next.js 16 web app]
-  WEB --> PG[(PostgreSQL)]
-  WEB --> REDIS[(Redis)]
-  WEB -. optional later .-> MS[(Meilisearch)]
-
-  SCH[Scheduler] --> Q[BullMQ queues]
-  Q --> WK[Worker]
-  WK --> PG
-  WK --> REDIS
-  WK --> MS
-  WK -->|HMAC revalidate| WEB
-  WK -->|HTTPS| SRC[ODbL dump / AniList after permission]
+  WEB --> CAT[Catalog API]
+  WEB --> SCHAPI[Schedule API]
+  WEB --> SEA[Search API]
+  CAT --> PG[(PostgreSQL: catalog DB)]
+  SCHAPI --> PG2[(PostgreSQL: schedule DB)]
+  SEA --> IDX[(Search index)]
+  ING[Ingestion service + worker] --> Q[Queue]
+  ING -->|HTTPS| SRC[Approved provider / ODbL seed]
+  ING -->|HTTP/events| CAT
+  ING -->|HTTP/events| SCHAPI
+  CUR[Admin/Curation API] --> CAT
+  CUR --> SCHAPI
 
   PG -->|nightly pg_dump| R2[(Cloudflare R2)]
   WEB --> SENTRY[Sentry]
@@ -138,7 +143,7 @@ flowchart LR
   EXT[External uptime monitor] --> WEB
 ```
 
-Core rule: **visitors only read from our database**. External APIs are touched only by the worker, and only for sources we are legally allowed to use.
+Core rules: **web requests never depend on provider availability; provider access is isolated to Ingestion; each service owns its data and exposes it through a contract.** PostgreSQL may be one server at first, but services use separate databases/schemas, credentials, and migrations. Jikan's public API is discontinued; any private Jikan deployment must be evaluated as a separate operational choice.
 
 ---
 
@@ -152,12 +157,13 @@ Core rule: **visitors only read from our database**. External APIs are touched o
 | `03-ui-ux.md` | Design principles, wireframes, components, responsive/a11y |
 | `04-database.md` | Schema, ERD, indexes, Indonesian content, migrations |
 | `05-data-sync.md` | Jobs, schedules, rate limits, providers, error handling |
-| `06-search.md` | Postgres FTS for MVP, Meilisearch target design |
+| `06-search.md` | Search Service API, PostgreSQL FTS backend, optional Meilisearch |
 | `07-auth-community.md` | Auth flows, user data, moderation, anti-spam |
 | `08-architecture-infra.md` | Components, network, servers, deployment, backups |
 | `09-security-legal.md` | Threat model, API terms, copyright, UU PDP/PSE |
 | `10-roadmap.md` | Phased tasks, checkboxes, dependencies, estimates |
 | `11-risks-open-questions.md` | Risks, mitigations, open questions, triggers |
+| `../implementation-checklist.md` | Implementation status, completed work, and remaining service/deployment tasks |
 
 ---
 
@@ -184,7 +190,7 @@ Accounts, watchlists, reviews, and premium are explicitly **after** this gate.
 
 1. **AniList permission is not granted.** Launch depends on ODbL + manual curation. If permission is denied, the catalog remains usable but updates are labour-intensive.
 2. **Image and synopsis copyright.** Posters and translated synopses are not automatically licensed by the database license. Use originals, attribution, and a takedown process; seek permission before commercial scale.
-3. **2 GB laptop reliability.** Power, sleep, ISP, disk, and RAM are single points of failure. Private beta only; public launch on a VPS.
+3. **Three-server single points of failure.** Each service starts with one instance; monitor health, keep off-host backups, and document recovery time before public launch.
 4. **Manual curation does not scale.** Current-season schedule and streaming links need a real editor with hours, not a side task.
 5. **Scope creep into a tracker/community before the catalog is trusted.** The 6-week gate must stay narrow.
 

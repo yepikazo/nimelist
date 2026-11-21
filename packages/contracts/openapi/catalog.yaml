@@ -1,0 +1,194 @@
+openapi: 3.1.0
+info:
+  title: Nimelist Catalog Service
+  version: 1.0.0
+servers:
+  - url: http://catalog:4101
+paths:
+  /v1/media:
+    get:
+      operationId: listMedia
+      summary: Cari dan filter katalog media.
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 80 }
+        - name: genre
+          in: query
+          schema: { type: string }
+        - name: season
+          in: query
+          schema: { type: string, enum: [WINTER, SPRING, SUMMER, FALL] }
+        - name: year
+          in: query
+          schema: { type: integer, minimum: 1900, maximum: 2100 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 60, default: 24 }
+      responses:
+        "200":
+          description: Halaman katalog.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, pageSize, total]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/MediaSummary" } }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  total: { type: integer }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /v1/media/{slug}:
+    get:
+      operationId: getMediaBySlug
+      summary: Ambil detail media berdasarkan slug.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Detail media.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MediaDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /internal/v1/media/import:
+    post:
+      operationId: importMedia
+      summary: Upsert metadata yang sudah dinormalisasi oleh Ingestion Service.
+      security: [{ serviceToken: [] }]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MediaImport" }
+      responses:
+        "202":
+          description: Import diterima atau sudah diterapkan secara idempoten.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mediaId, status]
+                properties:
+                  mediaId: { type: string }
+                  status: { type: string, enum: [created, updated, unchanged] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /internal/v1/media:
+    get:
+      operationId: getMediaSummariesById
+      summary: Ambil ringkasan media untuk service internal.
+      security: [{ serviceToken: [] }]
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          description: Daftar 1–100 UUID media, dipisahkan koma.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Ringkasan media yang tersedia dan tidak dewasa.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/InternalMediaSummary" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+components:
+  securitySchemes:
+    serviceToken:
+      type: http
+      scheme: bearer
+  schemas:
+    MediaSummary:
+      type: object
+      required: [id, slug, title, format, status]
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        title: { type: string }
+        titleRomaji: { type: string }
+        titleEnglish: { type: [string, "null"] }
+        titleId: { type: [string, "null"] }
+        format: { type: string }
+        status: { type: string }
+        season: { type: [string, "null"] }
+        seasonYear: { type: [integer, "null"] }
+        coverUrl: { type: [string, "null"], format: uri }
+    MediaDetail:
+      allOf:
+        - $ref: "#/components/schemas/MediaSummary"
+        - type: object
+          properties:
+            synopsisId: { type: [string, "null"] }
+            genres: { type: array, items: { type: string } }
+            studios: { type: array, items: { type: string } }
+            contentStatus: { type: string }
+    InternalMediaSummary:
+      type: object
+      required: [id, slug, title, titleRomaji]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        titleRomaji: { type: string }
+        titleEnglish: { type: [string, "null"] }
+        coverUrl: { type: [string, "null"], format: uri }
+    MediaImport:
+      type: object
+      required: [provider, externalId, titleRomaji]
+      properties:
+        provider: { type: string, enum: [offline-db, manual, mal, anilist, jikan-self-hosted] }
+        externalId: { type: string, minLength: 1, maxLength: 100 }
+        sourceUrl: { type: [string, "null"], format: uri }
+        titleRomaji: { type: string, minLength: 1, maxLength: 300 }
+        titleEnglish: { type: [string, "null"], maxLength: 300 }
+        titleNative: { type: [string, "null"], maxLength: 300 }
+        format: { type: [string, "null"], enum: [TV, TV_SHORT, MOVIE, SPECIAL, OVA, ONA, MUSIC, UNKNOWN, null] }
+        status: { type: [string, "null"], enum: [FINISHED, RELEASING, NOT_YET_RELEASED, CANCELLED, HIATUS, UNKNOWN, null] }
+        season: { type: [string, "null"], enum: [WINTER, SPRING, SUMMER, FALL, null] }
+        seasonYear: { type: [integer, "null"], minimum: 1900, maximum: 2100 }
+        episodes: { type: [integer, "null"], minimum: 0 }
+        genres: { type: array, items: { type: string, maxLength: 100 } }
+        studios: { type: array, items: { type: string, maxLength: 160 } }
+        isAdult: { type: [boolean, "null"] }
+    ApiError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+  responses:
+    BadRequest:
+      description: Parameter atau body tidak valid.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }
+    NotFound:
+      description: Media tidak ditemukan.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }
+    Unauthorized:
+      description: Kredensial service tidak valid.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }

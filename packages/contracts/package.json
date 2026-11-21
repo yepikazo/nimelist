@@ -1,0 +1,9 @@
+{
+  "name": "@nimelist/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./events/*": "./events/*.schema.json"
+  }
+}

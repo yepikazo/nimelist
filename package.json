@@ -2,11 +2,20 @@
   "name": "nimelist",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "services/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed": "node scripts/build-seed.mjs",
+    "start:catalog": "npm run start --workspace=@nimelist/catalog-service",
+    "start:schedule": "npm run start --workspace=@nimelist/schedule-service",
+    "start:search": "npm run start --workspace=@nimelist/search-service",
+    "start:ingestion": "npm run start --workspace=@nimelist/ingestion-service"
   },
   "dependencies": {
     "clsx": "^2.1.1",

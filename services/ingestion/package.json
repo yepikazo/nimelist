@@ -1,0 +1,11 @@
+{
+  "name": "@nimelist/ingestion-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "dev": "node --watch src/server.mjs",
+    "start": "node src/server.mjs"
+  }
+}

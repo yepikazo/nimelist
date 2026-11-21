@@ -2,6 +2,9 @@
 
 ## 1. Database choice and conventions
 
+- **Microservice ownership:** the schema below is a logical catalog, not a single shared schema used by every runtime. Catalog Service owns media/taxonomy/provenance; Schedule Service owns schedules; Ingestion owns sync cursors/logs; Search owns only its rebuildable index. User/community tables remain a later User/Community Service concern.
+- **No cross-service table access.** Use separate PostgreSQL databases or schemas, roles, and migration histories even when they share one PostgreSQL server. Other services call the owning API or consume versioned events.
+- The current beta still uses SQLite in `lib/repository.ts`. The move to PostgreSQL and service APIs is a planned migration, not an existing deployment.
 - **PostgreSQL 17+** (18 if the hosting image is stable). Use `citext`, `pg_trgm`, `unaccent`, and built-in full-text search.
 - **Prisma 7.10.1** pinned for schema, migrations, and typed client. Do not use the npm `latest` tag: it currently points at an 8.0 release candidate.
 - Table names: `snake_case`, singular (`media`, not `medias`). Prisma models `PascalCase` with `@@map`.
@@ -929,7 +932,9 @@ Do not use `^` or `latest` for Prisma until 8.x is stable and tested.
 
 ---
 
-## 10. Capacity plan for the 2 GB laptop
+## 10. Capacity planning
+
+The old 2 GB laptop estimates below describe the initial single-host planning draft and are **not** the target three-server sizing. See `08-architecture-infra.md` for per-server estimates. Recalculate after importing the catalog and measuring real indexes, worker load, and traffic.
 
 Assumptions: 41k media, ~10 genres/media, ~2 studios/media, ~5 external IDs/media, 50k schedule rows/year, 1M list entries, 100k reviews.
 
@@ -942,7 +947,7 @@ Assumptions: 41k media, ~10 genres/media, ~2 studios/media, ~5 external IDs/medi
 | Meilisearch (later) | 150–250 MB |
 | Backups on disk | 0 (send to R2) |
 
-**Postgres settings for 2 GB RAM**
+**Legacy single-host Postgres example (not a production target)**
 
 ```conf
 shared_buffers = 256MB
@@ -955,7 +960,7 @@ wal_compression = on
 
 **Connections:** web `connection_limit=5`, worker `connection_limit=3`. Do not let Prisma default to a large pool.
 
-**Disk guardrails:** log rotation (10 MB × 5), Docker image pruning weekly, no local backups, Meilisearch disabled at launch. Keep at least 1.5 GB free or the laptop will stall.
+**General disk guardrails:** rotate logs, prune obsolete images, keep backups off-host, and alert before the data volume is nearly full.
 
 ---
 

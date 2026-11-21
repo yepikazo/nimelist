@@ -12,7 +12,7 @@ Scoring: **L** = likelihood (1 low – 5 high), **I** = impact (1 low – 5 high
 | R4 | Poster/banner copyright claim | 4 | 4 | 16 | Hotlink + attribution + takedown; seek permission; placeholder fallback; no rehosting | Founder | First takedown |
 | R5 | Synopsis translation is derivative infringement | 3 | 5 | 15 | Original Indonesian summaries; no machine translation of provider text; contributor licence | Editor | Before publish |
 | R6 | Kitsu terms block commercial use | 3 | 3 | 9 | Do not use as primary; request API terms; user import only if allowed | Founder | Before integration |
-| R7 | 2 GB laptop is unreliable for public traffic | 5 | 4 | 20 | Private beta only; move to 4 GB VPS before public launch; Cloudflare Tunnel; backups | DevOps | Public launch gate |
+| R7 | Three-server topology has a single instance per critical service | 4 | 4 | 16 | Backups, health checks, documented restore, staged rollout; define acceptable downtime for assignment deployment | DevOps | Public traffic / outage |
 | R8 | Manual curation does not scale | 4 | 4 | 16 | Curate only Tier A; recurring schedule generation; admin tooling; 3 h/week budget | Curator | > 6 h/week |
 | R9 | Schedule/streaming data is wrong | 4 | 4 | 16 | Source URLs, last-verified, confidence labels, report link, weekly audit | Curator | User reports |
 | R10 | SEO competition from pirate sites | 4 | 3 | 12 | Target legal/info intent; unique Indonesian content; schedule freshness; E-E-A-T | Growth | Flat organic traffic |
@@ -31,11 +31,14 @@ Scoring: **L** = likelihood (1 low – 5 high), **I** = impact (1 low – 5 high
 | R23 | Domain/brand trademark conflict | 2 | 4 | 8 | Search before launch; counsel; avoid similar names | Founder | Before domain purchase |
 | R24 | Search index or cache poisoning | 2 | 4 | 8 | Server-side validation; no client-trusted data; reindex; audit | Dev | Anomaly |
 | R25 | Analytics/privacy non-compliance | 3 | 4 | 12 | Consent, minimisation, privacy policy, DPAs | Legal | Before analytics |
+| R26 | Jikan public API unavailable | 5 | 4 | 20 | Do not call `api.jikan.moe`; use ODbL seed/manual curation and evaluate approved providers or self-hosting separately | Tech lead | Provider integration |
+| R27 | Microservice network or contract failure breaks page rendering | 3 | 4 | 12 | Timeouts, versioned contracts, stale/cache fallback, request IDs, contract checks in CI | Tech lead | API rollout |
+| R28 | Service data ownership erodes into shared-table coupling | 3 | 4 | 12 | Separate DBs/schemas, roles, migrations; prohibit cross-service DB access | Tech lead | Schema review |
 
 ### Top 5 to watch weekly
 
-1. R7 — laptop reliability vs public launch.
-2. R1 — AniList permission.
+1. R7 — service availability and recovery on the three-server setup.
+2. R26 — replacement data provider after Jikan public API shutdown.
 3. R17 — scope/burnout.
 4. R4/R5 — image and synopsis copyright.
 5. R9 — schedule/streaming accuracy.
@@ -49,8 +52,8 @@ Answer these before or during Phase 0. Defaults are in brackets.
 | # | Question | Why it matters | Default if unanswered | Owner | Deadline |
 |---|---|---|---|---|---|
 | Q1 | Has AniList replied? What is the timeline? | Determines provider roadmap | Assume no; ODbL + manual | Founder | Week 2 |
-| Q2 | Is the laptop dedicated to serving, always on, wired, with UPS? | Uptime and public launch | Private beta only | Founder | Week 1 |
-| Q3 | Can we spend ~$5–10/month on a 4 GB VPS before public launch? | Public reliability | Use laptop for beta; gate public launch | Founder | Week 4 |
+| Q2 | What are the CPU, RAM, disk, and network specs for each of the three servers? | Capacity planning for service placement | Use estimates in `08-architecture-infra.md`, then measure | Founder/DevOps | Before deployment |
+| Q3 | Are the servers connected by a private network or VPN, and which host can expose 80/443? | Internal API and database security | Only Server 1 public; WireGuard/Tailscale/VPC for private traffic | DevOps | Before deployment |
 | Q4 | What is the domain and brand name? | SEO, email, OAuth redirects | `nimelist.id` placeholder | Founder | Week 1 |
 | Q5 | Who is the Indonesian editor/curator, and how many hours/week? | Content quality and schedule accuracy | 3 h/week, part-time | Founder | Week 1 |
 | Q6 | Which legal platforms are priority for curation? | Streaming coverage | Bstation, Crunchyroll, Netflix, iQIYI, Vidio | Curator | Week 2 |
@@ -61,7 +64,7 @@ Answer these before or during Phase 0. Defaults are in brackets.
 | Q11 | Do we have Google/Discord OAuth apps and an email sender? | Phase 2 auth | Create in Phase 0 | Dev | Week 4 |
 | Q12 | Ads/affiliate accounts: which networks/programs? | Monetization | Affiliate only after launch | Founder | Phase 4 |
 | Q13 | Premium price/payment provider? | Phase 4 | Rp 15k/month, Midtrans | Product | Phase 4 |
-| Q14 | If AniList is denied, is there budget for a commercial data provider? | Catalog quality | No; ODbL + manual | Founder | Week 4 |
+| Q14 | Which approved provider, if any, will enrich the ODbL seed? | Catalog freshness and legal use | ODbL + manual curation; no Jikan public API | Founder | Before ingestion |
 | Q15 | Do we need English UI in year one? | Routing/content workload | No; Indonesian only | Product | Phase 4 |
 | Q16 | Who is on-call for incidents? | Ops readiness | Founder + dev | Founder | Launch |
 | Q17 | What is the exact public launch date? | Roadmap | End of Week 6 | Lead | Week 1 |
@@ -86,6 +89,8 @@ Answer these before or during Phase 0. Defaults are in brackets.
 | 9 Nov 2026 | Postgres FTS for MVP, Meilisearch later | Fits 2 GB laptop | Accepted |
 | 9 Nov 2026 | npm workspaces, no Turborepo | Small team, shared code | Accepted |
 | 9 Nov 2026 | Modular monolith + worker | Avoid microservices overhead | Accepted |
+| 21 Nov 2026 | Three-server microservices target: Web/BFF, Catalog, Schedule, Search, Ingestion | Required by assignment; services own data and communicate through versioned APIs/events | Accepted as target; implementation pending |
+| 21 Nov 2026 | Jikan public API is not a dependency | Official public endpoint discontinued 1 Oct 2026 | Accepted |
 
 ---
 
@@ -93,10 +98,11 @@ Answer these before or during Phase 0. Defaults are in brackets.
 
 | If this happens | Then |
 |---|---|
-| AniList grants written permission | Enable `PROVIDER_ANILIST_ENABLED`; add sync jobs; keep manual overrides; update privacy/attribution |
+| AniList grants written permission and the proposed use is within scope | Enable the reviewed provider adapter; add sync jobs; keep manual overrides; update privacy/attribution |
 | AniList denies permission | Stay on ODbL + manual; remove any AniList data; evaluate licensed provider |
-| VPS budget approved | Move lean Compose to 4 GB VPS; keep laptop as staging |
-| Traffic > 50k/month or search complaints | Add Meilisearch; consider 3-server target |
+| Server specifications or private network differ from planning assumptions | Reassign service containers, resize hosts, and verify private-only reachability before deployment |
+| Search complaints or measured relevance/latency issue | Add Meilisearch behind Search Service API |
+| Jikan self-hosting is chosen | Isolate Jikan's MongoDB/Typesense/Redis and indexer capacity; document data rights and maintenance; keep Nimelist APIs independent |
 | Curation > 6 h/week | Reduce scope to current season + top 200; hire/volunteer curator |
 | UGC about to launch | Complete PSE registration, moderation, guidelines, Turnstile, audit log |
 | Core Web Vitals fail | Remove ads/client JS; optimize LCP image; reduce third parties |
@@ -130,17 +136,18 @@ Answer these before or during Phase 0. Defaults are in brackets.
 
 ## 6. Final recommendation
 
-**Start with Phase 0, and make the single best first task the AniList permission email + ODbL legal review — before writing catalog code.**
+**Start with the service contracts and data-source review, then build one vertical slice through the new boundaries.**
 
-Why: every downstream choice (schema provenance, provider abstraction, image policy, content workflow) depends on what data we are legally allowed to store. The engineering can proceed in parallel on the catalog shell and seed, but the legal gate must be opened first. If AniList says yes, the roadmap accelerates; if not, the ODbL + manual plan is already the launch path and nothing is wasted.
+The assignment requires independently deployable services, so agree on ownership and API/event contracts before splitting the existing SQLite repository. In parallel, keep the seed/manual path available and review provider terms. Jikan's public endpoint has been discontinued; no implementation should depend on it.
 
 ### First task checklist (this week)
 
-- [ ] Send the AniList permission request (template in `05-data-sync.md`).
+- [ ] Confirm CPU/RAM/disk and private-network access for each of the three servers.
+- [ ] Define Catalog, Schedule, Search, and Ingestion OpenAPI/event contracts and service data ownership.
 - [ ] Book a 1-hour legal review of ODbL attribution/share-alike and image use.
-- [ ] Confirm domain, editor hours, and the VPS decision date.
-- [ ] Create the workspace skeleton and pin Prisma/Better Auth/Next versions.
-- [ ] Download the ODbL dump and measure seed time/size on the laptop.
-- [ ] Build the first admin-only page that lists 20 seeded anime and one schedule row.
+- [ ] Confirm domain, editor hours, and approved provider direction; AniList stays disabled until its intended use is authorized.
+- [ ] Create independently buildable workspaces and one container per initial service.
+- [ ] Import a small ODbL fixture through Ingestion → Catalog API and add one manually curated schedule through Schedule API.
+- [ ] Update Next.js to render that catalog/detail/schedule slice through internal API clients.
 
-That gives the team a real end-to-end slice — data → database → page — while the legal answer is pending.
+That gives the team a reviewable end-to-end slice — provider/curation → owned service data → internal API → Next.js page — while provider approval remains independent.

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nimelist:contracts:events:schedule-changed:1.0.0",
+  "title": "schedule.changed",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventId", "eventType", "eventVersion", "occurredAt", "mediaId", "dates"],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "eventType": { "const": "schedule.changed" },
+    "eventVersion": { "const": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "mediaId": { "type": "string", "minLength": 1 },
+    "dates": { "type": "array", "items": { "type": "string", "format": "date" }, "uniqueItems": true },
+    "traceId": { "type": "string" }
+  }
+}

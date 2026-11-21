@@ -1,0 +1,50 @@
+openapi: 3.1.0
+info:
+  title: Nimelist Search Service
+  version: 1.0.0
+servers:
+  - url: http://search:4103
+paths:
+  /v1/search:
+    get:
+      operationId: searchMedia
+      summary: Cari anime di indeks Nimelist.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 80 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 30, default: 10 }
+        - name: cursor
+          in: query
+          schema: { type: [string, "null"] }
+      responses:
+        "200":
+          description: Hasil pencarian.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [query, items, hasMore]
+                properties:
+                  query: { type: string }
+                  items: { type: array, items: { $ref: "#/components/schemas/SearchHit" } }
+                  nextCursor: { type: [string, "null"] }
+                  hasMore: { type: boolean }
+        "400":
+          description: Query tidak valid.
+components:
+  schemas:
+    SearchHit:
+      type: object
+      required: [mediaId, slug, title, score]
+      properties:
+        mediaId: { type: string }
+        slug: { type: string }
+        title: { type: string }
+        titleRomaji: { type: string }
+        titleEnglish: { type: [string, "null"] }
+        coverUrl: { type: [string, "null"], format: uri }
+        score: { type: number, minimum: 0 }

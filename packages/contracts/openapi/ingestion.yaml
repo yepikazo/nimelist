@@ -1,0 +1,47 @@
+openapi: 3.1.0
+info:
+  title: Nimelist Ingestion Service
+  version: 1.0.0
+servers:
+  - url: http://ingestion:4104
+paths:
+  /internal/v1/sync-runs:
+    post:
+      operationId: startSyncRun
+      summary: Jadwalkan pekerjaan sinkronisasi provider yang sudah diaktifkan.
+      security: [{ serviceToken: [] }]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, job]
+              properties:
+                provider: { type: string, enum: [offline-db, manual, mal, anilist, jikan-self-hosted] }
+                job: { type: string, enum: [seed, season-refresh, media-refresh, schedule-refresh] }
+                season: { type: [string, "null"], enum: [WINTER, SPRING, SUMMER, FALL, null] }
+                year: { type: [integer, "null"], minimum: 1900, maximum: 2100 }
+      responses:
+        "202":
+          description: Pekerjaan dimasukkan ke antrean.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [runId, status]
+                properties:
+                  runId: { type: string }
+                  status: { type: string, const: queued }
+        "401": { description: Kredensial service tidak valid. }
+        "409": { description: Provider belum diaktifkan atau tidak diizinkan. }
+components:
+  securitySchemes:
+    serviceToken:
+      type: http
+      scheme: bearer

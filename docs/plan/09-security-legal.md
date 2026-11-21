@@ -42,20 +42,29 @@
 flowchart LR
   B[Browser] -->|HTTPS| CF[Cloudflare]
   CF -->|Tunnel| CAD[Caddy]
-  CAD --> WEB[Next.js]
-  WEB -->|private| DB[(Postgres)]
-  WEB -->|private| REDIS[(Redis)]
-  WK[Worker] -->|private| DB
-  WK -->|private| REDIS
-  WK -->|HTTPS| EXT[External providers]
-  WK -->|HMAC| WEB
+  CAD --> WEB[Next.js web/BFF]
+  WEB -->|private HTTP| CAT[Catalog API]
+  WEB -->|private HTTP| SCH[Schedule API]
+  WEB -->|private HTTP| SEA[Search API]
+  CAT -->|owner only| CDB[(Catalog DB)]
+  SCH -->|owner only| SDB[(Schedule DB)]
+  SEA -->|owner only| IDX[(Search index)]
+  ING[Ingestion worker] -->|HTTPS| EXT[Approved provider]
+  ING -->|private HTTP/events| CAT
+  ING -->|private HTTP/events| SCH
+  CAT --> Q[Private event queue]
+  SCH --> Q
+  Q --> SEA
+  ADM[Private Admin/Curation] --> CAT
+  ADM --> SCH
   WEB -->|HTTPS| SENTRY[Sentry]
   DB -->|encrypted| R2[(R2)]
 ```
 
 - Browser is untrusted.
 - Cloudflare is trusted for transport/WAF but not for authorization.
-- Worker is trusted but must validate provider data.
+- Ingestion is trusted but must validate provider data and cannot write domain databases directly.
+- Each domain service is the only writer to its own data store; internal API authentication does not replace authorization checks.
 - Admin is powerful but audited.
 - External providers are untrusted input.
 
@@ -105,13 +114,13 @@ flowchart LR
 
 ### 2.5 Database and secrets
 
-- Postgres/Redis bind private interfaces only.
-- Separate DB roles: `app` (DML), `worker` (DML + jobs), `migrator` (DDL), `readonly` (analytics).
+- PostgreSQL, Redis/message broker, search index, and internal APIs bind private interfaces only.
+- Use service-specific DBs/roles for Catalog, Schedule, Ingestion, and Search; migrations use separate DDL credentials.
 - No superuser in app.
 - Secrets in Docker secrets/SOPS; never in git or client bundles.
 - Rotate: DB password, Redis password, Better Auth secret, OAuth secrets, HMAC, R2 keys, SMTP.
 - Backups encrypted with `age`; keys stored offline/password manager.
-- Connection limits: web 5, worker 3.
+- Connection limits are configured per service; use a pooler only after measuring connection pressure.
 
 ### 2.6 Rate limiting
 

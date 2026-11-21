@@ -2,8 +2,8 @@
 
 ## 1. Principles
 
-1. **Visitors never call an external API.** The web app reads Postgres only.
-2. **The worker is the only process that talks to providers.** It has egress; the web app does not need it.
+1. **Visitors never call a provider API.** The web app reads Nimelist-owned Catalog, Schedule, and Search APIs.
+2. **Ingestion is the only service that talks to providers.** It has provider egress; the web app and domain APIs do not need it.
 3. **Legal gate before technical integration.** A provider is disabled unless its terms allow our use. AniList stays off until written permission.
 4. **Manual curation is a first-class provider.** It is not a fallback hack; it is the launch strategy.
 5. **Idempotent, resumable, observable.** Every job can run twice without duplicating data, and every run leaves a `sync_log` row.
@@ -17,9 +17,11 @@
 |---|---|---|---|
 | **anime-offline-database** | Initial catalog seed | **Allowed with conditions** | ODbL-1.0 + DbCL; attribution, share-alike, keep notices; archived 4 Jul 2026, so no updates |
 | **Manual curation** | Schedule, streaming, Indonesian text | **Allowed** | Internal editorial work; cite sources |
-| **AniList** | Schedule, metadata, characters, ratings | **BLOCKED pending written permission** | ToS prohibits data storage, hoarding, and competing trackers; commercial under $150/mo free, above needs licence |
-| **Kitsu** | Fallback metadata | **BLOCKED pending API terms** | Terms prohibit commercial use of Kitsu content separate from Kitsu services; API use subject to separate terms on request |
-| **MyAnimeList** | User-authorised import/sync only | **Later** | Official API; no scraping; user OAuth; not a catalog seed |
+| **Jikan public API** | Former metadata adapter | **Unavailable** | Official public API discontinued 1 Oct 2026. Do not use `api.jikan.moe` as a dependency. |
+| **Jikan self-hosted** | Optional private adapter | **Evaluate separately** | Official container stack requires MongoDB and indexing; self-hosting has operational cost and does not remove upstream/source terms. |
+| **AniList** | Candidate metadata/schedule adapter | **Disabled pending written permission** | Current terms prohibit data storage/hoarding and competing tracker use; rate limits may be reduced during degraded periods. |
+| **Kitsu** | Candidate metadata adapter | **Not selected** | Verify that the anime catalog API, terms, and service are still appropriate before integration; current developer docs primarily describe production-management software. |
+| **MyAnimeList API v2** | Candidate metadata or user-authorized import | **Evaluate terms before use** | Official API requires app registration/Client ID; no scraping; request limits and data-retention rights must be checked. |
 | **TMDB** | Optional streaming availability | **Evaluate later** | Verify commercial terms and watch-provider attribution before use |
 
 ### AniList permission request (Phase 0)
@@ -48,10 +50,10 @@ Include:
 ## 3. Provider abstraction
 
 ```ts
-// packages/providers/src/types.ts
+// services/ingestion/src/providers/types.ts
 import { z } from "zod";
 
-export type ProviderName = "anilist" | "kitsu" | "offline-db" | "manual";
+export type ProviderName = "mal" | "anilist" | "jikan-self-hosted" | "offline-db" | "manual";
 
 export interface Provider {
   name: ProviderName;
@@ -63,11 +65,11 @@ export interface Provider {
 }
 ```
 
-Every provider returns a **normalized DTO**, validated with Zod before it touches the database. Provider-specific GraphQL/JSON shapes never leak into the app.
+Every provider returns a **normalized DTO**, validated with Zod before Ingestion calls the owning Catalog or Schedule API. Provider-specific GraphQL/JSON shapes never leak into the web app or domain services.
 
 ```ts
 export const NormalizedMedia = z.object({
-  provider: z.enum(["anilist", "kitsu", "offline-db", "manual"]),
+  provider: z.enum(["mal", "anilist", "jikan-self-hosted", "offline-db", "manual"]),
   externalId: z.string(),
   url: z.string().url().optional(),
   titleRomaji: z.string().min(1),
@@ -98,13 +100,13 @@ export const NormalizedMedia = z.object({
 |---|---|
 | `slug` | Manual/curated only; never provider |
 | `title_id`, `synopsis_id` | Manual/curated; never provider |
-| `title_romaji`, `title_english`, `title_native` | Manual > AniList (if allowed) > Kitsu > ODbL |
-| `cover_url`, `banner_url` | Manual > AniList (if allowed) > ODbL |
-| `episodes`, `status`, `season`, `season_year` | Manual > AniList > Kitsu > ODbL |
+| `title_romaji`, `title_english`, `title_native` | Manual > approved provider > ODbL |
+| `cover_url`, `banner_url` | Manual > approved provider > ODbL |
+| `episodes`, `status`, `season`, `season_year` | Manual > approved provider > ODbL |
 | `score_avg` | Nimelist users only when ratings exist; otherwise provider score as a separate `external_rating` field |
 | `popularity` | Local ranking; provider popularity stored separately |
 | `streaming_link` | Manual only; never provider-generated at launch |
-| `airing_schedule` | Manual confirmed > official platform > AniList (if allowed) > estimated |
+| `airing_schedule` | Manual confirmed > official platform > approved provider > estimated |
 
 If an incoming value conflicts with a curated field, log a `field_conflict` event and skip the write.
 
@@ -112,7 +114,7 @@ If an incoming value conflicts with a curated field, log a `field_conflict` even
 
 ## 4. Job schedule
 
-### 4.1 Launch jobs (laptop, no AniList)
+### 4.1 Initial jobs (local development / Server 3, no external provider required)
 
 | Job | Cron (Asia/Jakarta) | Queue | Concurrency | Source | Output | Revalidation |
 |---|---|---|---|---|---|---|
@@ -121,9 +123,9 @@ If an incoming value conflicts with a curated field, log a `field_conflict` even
 | `curation:reminders` | Daily 06:00 | `maintenance` | 1 | DB | admin task list: missing synopsis/schedule/streaming | None |
 | `streaming:staleness` | Daily 07:00 | `maintenance` | 1 | DB | mark links `STALE` after 30 days | `platform:*`, `media:*` |
 | `outbox:dispatch` | Every 30 s | `events` | 1 | `outbox` | revalidate/index calls | N/A |
-| `backup:db` | Daily 03:00 | `maintenance` | 1 | Postgres | encrypted `pg_dump` to R2 | None |
+| `backup:db` | Daily 03:00 | `maintenance` | 1 | Service-owned PostgreSQL databases | encrypted backups to external object storage | None |
 | `cleanup:retention` | Daily 04:00 | `maintenance` | 1 | DB | delete expired sessions/logs | None |
-| `reindex:search` | Manual/weekly | `maintenance` | 1 | DB | rebuild `search_text` | None |
+| `reindex:search` | Manual/weekly | `maintenance` | 1 | Catalog API/events | rebuild Search Service index | None |
 | `health:heartbeat` | Every 5 min | `events` | 1 | Worker | push heartbeat to uptime monitor | None |
 
 ### 4.2 Provider jobs (enabled only after permission)
@@ -147,8 +149,9 @@ If an incoming value conflicts with a curated field, log a `field_conflict` even
 
 | Provider | Limit | Our budget | Implementation |
 |---|---|---|---|
-| AniList | 90/min normal; **30/min degraded**; burst limiter; no raises currently | **20/min**, concurrency 1, burst 5 | Redis token bucket + `X-RateLimit-*` headers |
-| Kitsu | No published hard limit; polite ~10 req/s | **5 req/s**, concurrency 2 | Redis token bucket |
+| AniList | Official limit may be temporarily degraded; currently documented at 30/min | **20/min**, concurrency 1, burst 5, only after permission | Redis token bucket + response headers |
+| MyAnimeList API v2 | No numeric limit documented in the plan | Start conservatively at **1 req/s**, concurrency 1; adjust only from official guidance | Redis token bucket; honor errors and backoff |
+| Jikan self-hosted | Set local limits; upstream MAL may still constrain freshness/indexing | Start at **1 req/s**, concurrency 1 pending validation | Separate queue and rate limiter |
 | ODbL | Local file | N/A | Stream from disk |
 | Manual | N/A | N/A | Admin UI |
 
@@ -163,7 +166,11 @@ If an incoming value conflicts with a curated field, log a `field_conflict` even
 - **Dead-letter queue**: after max attempts, move to `{queue}:dead` and create an admin alert.
 - **No parallel full refresh**: `sync:full` uses a dedicated `backfill` queue with concurrency 1, so it cannot starve hourly jobs.
 
-### 5.3 AniList GraphQL specifics (after permission)
+### 5.3 Provider-specific behavior
+
+Provider-specific pagination, request fields, and throttles live inside that provider adapter. Do not use an undocumented bulk endpoint or scrape provider pages. Keep provider payloads out of Catalog and Schedule APIs.
+
+#### AniList (only after permission)
 
 - One query per page of 50 media, request only the fields needed.
 - Use `Page(page, perPage)`; stop when `hasNextPage` is false.
@@ -181,18 +188,12 @@ If an incoming value conflicts with a curated field, log a `field_conflict` even
 
 ```text
 for each normalized item:
-  begin transaction
-    find media by external_id(provider, external_id)
-    if not found:
-      insert media with generated slug
-      insert external_id
-    else:
-      compare fields; skip curated_fields
-      update only changed fields
-      set last_synced_at
-    upsert genres, studios, external IDs
-    insert sync event into outbox if public fields changed
-  commit
+  validate normalized item
+  call Catalog API with idempotency key(provider, external_id)
+  Catalog Service owns transaction, slug/external-ID resolution, curated-field protection,
+  database write, and its outbox event
+  if schedule data exists, call Schedule API with its own idempotency key
+  record provider cursor and sync result in Ingestion-owned database
 ```
 
 ### 6.2 Conflict rules
@@ -218,11 +219,11 @@ for each normalized item:
 
 ## 7. Schedule materialisation
 
-Because the launch does not use AniList, the schedule is built from curated recurring slots plus manual overrides.
+The Schedule Service builds future occurrences from its own curated recurring slots plus manual overrides. It receives broadcast metadata from Catalog through API/events; it does not query Catalog tables.
 
 ### 7.1 Inputs
 
-- `media.broadcast_weekday` (1–7 ISO), `media.broadcast_time_jst` (time), `media.episodes`, `media.start_date`.
+- Catalog API/event DTO: `broadcast_weekday` (1–7 ISO), `broadcast_time_jst`, `episodes`, `start_date`.
 - Curator’s confirmed exceptions: delayed episode, double episode, break week, platform delay.
 
 ### 7.2 Algorithm
@@ -233,7 +234,7 @@ for each airing media with broadcast_weekday/time and start_date:
   for n in 0..(episodes-1):
     airing_at_jst = first_episode_date + n weeks at broadcast_time_jst
     airing_at_utc = convert JST -> UTC
-    upsert airing_schedule(media_id, episode_number=n+1)
+    Schedule Service upserts its owned occurrence(media_id, episode_number=n+1)
       unless a manual row exists
     set confidence = ESTIMATED
 ```
@@ -255,7 +256,7 @@ for each airing media with broadcast_weekday/time and start_date:
 
 ### 8.1 Outbox pattern
 
-The worker writes `outbox` rows in the same transaction as the data change:
+The owning domain service writes its `outbox` row in the same transaction as its data change. Ingestion does not write the Catalog or Schedule outbox directly:
 
 | Event | Payload |
 |---|---|
@@ -263,13 +264,13 @@ The worker writes `outbox` rows in the same transaction as the data change:
 | `INDEX` | `{ "mediaIds": [123, 124] }` |
 | `DELETE_INDEX` | `{ "mediaIds": [125] }` |
 
-The `outbox:dispatch` job:
+Each domain service runs its own outbox relay (or a relay with narrowly scoped credentials for that service's outbox):
 
 1. Claims a batch with `FOR UPDATE SKIP LOCKED`.
-2. Coalesces tags for 30 seconds.
-3. Calls `POST /api/internal/revalidate` with HMAC.
+2. Publishes the event to the private queue and coalesces web revalidation tags for 30 seconds.
+3. Calls `POST /api/internal/revalidate` with HMAC for cache tags.
 4. Marks `DONE` or retries with backoff.
-5. Moves permanently failed events to a dead-letter table and alerts.
+5. Moves permanently failed events to a service-owned dead-letter table and alerts.
 
 ### 8.2 Internal endpoint
 
@@ -308,14 +309,14 @@ export async function POST(req: Request) {
 
 ## 9. Search indexing
 
-### 9.1 Launch (Postgres)
+### 9.1 Initial Search Service (PostgreSQL FTS)
 
-- `media.search_text` is rebuilt by the app when titles, synonyms, genres, or studios change.
-- `media.search_vector` is a generated column; no external job needed.
-- A weekly `reindex:search` rebuilds all rows in batches to catch drift.
-- `search_synonym` is loaded into the query builder.
+- Search Service owns its FTS projection/index and Search API. It receives versioned catalog events or calls a read-only Catalog API for rebuilds.
+- Search Service does not update catalog tables. Search documents are derived and can be rebuilt.
+- A weekly `reindex:search` rebuilds the projection in batches to catch drift.
+- Search synonyms are owned by Search Service.
 
-### 9.2 Later (Meilisearch)
+### 9.2 Optional Meilisearch backend
 
 - Outbox `INDEX` events enqueue `search:index` jobs.
 - Batch 500 documents; `addDocuments` is idempotent by primary key.
