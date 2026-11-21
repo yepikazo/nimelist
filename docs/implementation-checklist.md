@@ -31,6 +31,7 @@ This checklist separates completed design work from runnable scaffolding and pro
 - [x] Added service readiness checks against the owned PostgreSQL database.
 - [x] Added transactional outbox records for Catalog and Schedule changes.
 - [x] Updated Catalog/Schedule API contracts and Dockerfiles to include PostgreSQL dependencies and migrations.
+- [x] Added a dry-run-first media seed importer that uses the Catalog API, preserves seed slugs, and retries transient failures.
 
 ## Current implementation limits
 
@@ -56,7 +57,8 @@ This checklist separates completed design work from runnable scaffolding and pro
 - [x] Implement `GET /v1/media` and `GET /v1/media/{slug}` against Catalog-owned data.
 - [x] Implement authenticated, idempotent `POST /internal/v1/media/import`.
 - [x] Preserve source provenance, curated-field overrides, adult filtering, and synopsis review gating in API responses.
-- [ ] Import the current seed into the Catalog database and reconcile slug changes.
+- [ ] Run the media seed importer against Catalog PostgreSQL and reconcile any slug conflicts (`npm run seed:catalog -- --apply`).
+- [ ] Add normalized genre/studio/platform tables and import their seed relations; keep demo schedule rows out of Catalog.
 - [x] Persist `catalog.media.changed` events in the transactional outbox.
 - [ ] Publish catalog outbox events to the broker and mark delivery status.
 
@@ -77,7 +79,7 @@ This checklist separates completed design work from runnable scaffolding and pro
 
 ### Ingestion Service
 
-- [ ] Implement the seed importer through the Catalog API.
+- [x] Implement the seed importer through the Catalog API; seed import dry-run is local and live import awaits PostgreSQL provisioning.
 - [ ] Add queue, scheduler, retry/backoff, provider rate limiting, sync-run records, and dead-letter handling.
 - [ ] Keep provider adapters disabled until their current terms and data-retention permissions are reviewed.
 - [ ] Add one approved provider adapter only after that review; retain manual curation as an independent path.

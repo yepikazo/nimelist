@@ -13,6 +13,8 @@ const providers = new Set(["offline-db", "manual", "mal", "anilist", "jikan-self
 const seasons = new Set(["WINTER", "SPRING", "SUMMER", "FALL"]);
 const formats = new Set(["TV", "TV_SHORT", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC", "UNKNOWN"]);
 const statuses = new Set(["FINISHED", "RELEASING", "NOT_YET_RELEASED", "CANCELLED", "HIATUS", "UNKNOWN"]);
+const contentStatuses = new Set(["MISSING", "DRAFT", "REVIEWED", "PUBLISHED", "REJECTED"]);
+const curatedColumnNames = new Set(["slug", "title_id", "synopsis_id", "format", "status", "season", "season_year", "episodes", "duration_minutes", "score_avg", "popularity", "cover_url", "banner_url", "synonyms", "genres", "studios", "is_adult", "content_status"]);
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function fail(status, code, message) {
@@ -72,13 +74,22 @@ function parseMediaImport(body) {
     fail(400, "INVALID_TITLE", "titleRomaji wajib diisi dan maksimal 300 karakter.");
   }
 
-  for (const field of ["titleEnglish", "titleNative", "sourceUrl", "season", "format", "status"]) {
+  for (const field of ["titleEnglish", "titleNative", "titleId", "synopsisId", "sourceUrl", "season", "format", "status", "slug", "contentStatus", "coverUrl", "bannerUrl"]) {
     if (body[field] != null && typeof body[field] !== "string") {
       fail(400, "INVALID_FIELD", `${field} harus berupa string atau null.`);
     }
   }
-  if (body.titleEnglish?.length > 300 || body.titleNative?.length > 300) {
+  if ([body.titleEnglish, body.titleNative, body.titleId].some((value) => value?.length > 300)) {
     fail(400, "INVALID_TITLE", "Judul maksimal 300 karakter.");
+  }
+  if (body.slug != null && (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(body.slug) || body.slug.length > 160)) fail(400, "INVALID_SLUG", "slug hanya boleh berisi huruf kecil, angka, dan tanda hubung.");
+  if (body.synopsisId != null && (typeof body.synopsisId !== "string" || body.synopsisId.length > 12000)) fail(400, "INVALID_SYNOPSIS", "synopsisId maksimal 12000 karakter atau null.");
+  if (body.contentStatus != null && !contentStatuses.has(body.contentStatus)) fail(400, "INVALID_CONTENT_STATUS", "contentStatus tidak valid.");
+  for (const field of ["coverUrl", "bannerUrl"]) {
+    if (body[field] != null) {
+      try { const url = new URL(body[field]); if (!["http:", "https:"].includes(url.protocol)) throw new Error(); }
+      catch { fail(400, "INVALID_IMAGE_URL", `${field} harus URL HTTP atau HTTPS.`); }
+    }
   }
   if (body.sourceUrl != null) {
     try {
@@ -104,6 +115,11 @@ function parseMediaImport(body) {
     fail(400, "INVALID_STUDIOS", "studios harus berupa array string maksimal 160 karakter.");
   }
   if (body.isAdult != null && typeof body.isAdult !== "boolean") fail(400, "INVALID_ADULT_FLAG", "isAdult harus boolean.");
+  if (body.synonyms != null && (!Array.isArray(body.synonyms) || body.synonyms.some((value) => typeof value !== "string" || value.length > 300))) fail(400, "INVALID_SYNONYMS", "synonyms harus berupa array string maksimal 300 karakter.");
+  if (body.durationMinutes != null && (!Number.isInteger(body.durationMinutes) || body.durationMinutes < 0 || body.durationMinutes > 32767)) fail(400, "INVALID_DURATION", "durationMinutes harus bilangan bulat non-negatif.");
+  if (body.scoreAvg != null && (typeof body.scoreAvg !== "number" || body.scoreAvg < 0 || body.scoreAvg > 10)) fail(400, "INVALID_SCORE", "scoreAvg harus bernilai 0 sampai 10.");
+  if (body.popularity != null && (!Number.isInteger(body.popularity) || body.popularity < 0 || body.popularity > 2147483647)) fail(400, "INVALID_POPULARITY", "popularity harus bilangan bulat non-negatif.");
+  if (body.curatedFields != null && (!Array.isArray(body.curatedFields) || body.curatedFields.some((field) => !curatedColumnNames.has(field)))) fail(400, "INVALID_CURATED_FIELDS", "curatedFields berisi kolom yang tidak diizinkan.");
 
   return {
     provider: body.provider,
@@ -112,6 +128,9 @@ function parseMediaImport(body) {
     titleRomaji: body.titleRomaji.trim(),
     titleEnglish: body.titleEnglish?.trim() || null,
     titleNative: body.titleNative?.trim() || null,
+    titleId: body.titleId?.trim() || null,
+    synopsisId: body.synopsisId ?? null,
+    slug: body.slug ?? null,
     format: body.format ?? null,
     status: body.status ?? null,
     season: body.season ?? null,
@@ -120,6 +139,14 @@ function parseMediaImport(body) {
     genres: body.genres ?? null,
     studios: body.studios ?? null,
     isAdult: body.isAdult ?? null,
+    durationMinutes: body.durationMinutes ?? null,
+    scoreAvg: body.scoreAvg ?? null,
+    popularity: body.popularity ?? null,
+    coverUrl: body.coverUrl ?? null,
+    bannerUrl: body.bannerUrl ?? null,
+    synonyms: body.synonyms ?? null,
+    contentStatus: body.contentStatus ?? null,
+    curatedFields: body.curatedFields ?? [],
   };
 }
 
@@ -159,27 +186,30 @@ async function importMedia(request) {
     let status;
     let changedFields = [];
     if (!existingResult.rowCount) {
-      const baseSlug = slugify(body.titleRomaji) || `anime-${slugify(`${body.provider}-${body.externalId}`)}`;
+      const baseSlug = body.slug ?? (slugify(body.titleRomaji) || `anime-${slugify(`${body.provider}-${body.externalId}`)}`);
       const collision = await client.query("SELECT 1 FROM media WHERE slug = $1", [baseSlug]);
-      const slug = collision.rowCount
-        ? `${baseSlug}-${slugify(`${body.provider}-${body.externalId}`).slice(0, 35)}`
-        : baseSlug;
+      if (collision.rowCount && body.slug) fail(409, "SLUG_CONFLICT", "Slug seed sudah dipakai oleh media lain.");
+      const slug = collision.rowCount ? `${baseSlug}-${slugify(`${body.provider}-${body.externalId}`).slice(0, 35)}` : baseSlug;
       const created = await client.query(
         `INSERT INTO media (
-          slug, title_romaji, title_english, title_native, format, status, season,
-          season_year, episodes, genres, studios, is_adult, source, source_url, provenance
+          slug, title_romaji, title_english, title_native, title_id, synopsis_id, format, status, season,
+          season_year, episodes, duration_minutes, score_avg, popularity, cover_url, banner_url,
+          synonyms, genres, studios, is_adult, content_status, curated_fields, source, source_url, provenance
         ) VALUES (
-          $1, $2, $3, $4, COALESCE($5, 'UNKNOWN'), COALESCE($6, 'UNKNOWN'),
-          $7, $8, $9, COALESCE($10, '{}'), COALESCE($11, '{}'), COALESCE($12, false),
-          $13, $14, jsonb_build_object($13, jsonb_build_object('externalId', $15, 'sourceUrl', $14))
+          $1, $2, $3, $4, $5, $6, COALESCE($7, 'UNKNOWN'), COALESCE($8, 'UNKNOWN'), $9,
+          $10, $11, $12, $13, COALESCE($14, 0), $15, $16, COALESCE($17, '{}'),
+          COALESCE($18, '{}'), COALESCE($19, '{}'), COALESCE($20, false), COALESCE($21, 'MISSING'),
+          $22, $23, $24, jsonb_build_object($23, jsonb_build_object('externalId', $25, 'sourceUrl', $24))
         ) RETURNING id`,
-        [slug, body.titleRomaji, body.titleEnglish, body.titleNative, body.format, body.status,
-          body.season, body.seasonYear, body.episodes, body.genres, body.studios,
-          body.isAdult, body.provider, body.sourceUrl, body.externalId],
+        [slug, body.titleRomaji, body.titleEnglish, body.titleNative, body.titleId, body.synopsisId,
+          body.format, body.status, body.season, body.seasonYear, body.episodes, body.durationMinutes,
+          body.scoreAvg, body.popularity, body.coverUrl, body.bannerUrl, body.synonyms, body.genres,
+          body.studios, body.isAdult, body.contentStatus, body.curatedFields, body.provider,
+          body.sourceUrl, body.externalId],
       );
       mediaId = created.rows[0].id;
       status = "created";
-      changedFields = ["title_romaji", "title_english", "title_native", "format", "status", "season", "season_year", "episodes", "genres", "studios", "is_adult"];
+      changedFields = ["slug", "title_romaji", "title_english", "title_native", "title_id", "synopsis_id", "format", "status", "season", "season_year", "episodes", "duration_minutes", "score_avg", "popularity", "cover_url", "banner_url", "synonyms", "genres", "studios", "is_adult", "content_status"];
       await client.query(
         "INSERT INTO external_id (provider, external_id, media_id, source_url) VALUES ($1, $2, $3, $4)",
         [body.provider, body.externalId, mediaId, body.sourceUrl],
@@ -188,13 +218,20 @@ async function importMedia(request) {
       const existing = existingResult.rows[0];
       mediaId = existing.id;
       const fieldMap = [
+        ["slug", "slug"], ["title_id", "titleId"], ["synopsis_id", "synopsisId"],
         ["title_romaji", "titleRomaji"], ["title_english", "titleEnglish"],
         ["title_native", "titleNative"], ["format", "format"], ["status", "status"],
         ["season", "season"], ["season_year", "seasonYear"], ["episodes", "episodes"],
-        ["genres", "genres"], ["studios", "studios"], ["is_adult", "isAdult"],
+        ["duration_minutes", "durationMinutes"], ["score_avg", "scoreAvg"], ["popularity", "popularity"],
+        ["cover_url", "coverUrl"], ["banner_url", "bannerUrl"], ["synonyms", "synonyms"],
+        ["genres", "genres"], ["studios", "studios"], ["is_adult", "isAdult"], ["content_status", "contentStatus"],
       ];
       const updates = [];
       const values = [mediaId];
+      if (body.slug && body.slug !== existing.slug && !existing.curated_fields.includes("slug")) {
+        const slugCollision = await client.query("SELECT 1 FROM media WHERE slug = $1 AND id <> $2", [body.slug, mediaId]);
+        if (slugCollision.rowCount) fail(409, "SLUG_CONFLICT", "Slug seed sudah dipakai oleh media lain.");
+      }
       for (const [column, property] of fieldMap) {
         const incoming = body[property];
         if (incoming == null || existing.curated_fields.includes(column)) continue;
@@ -210,6 +247,12 @@ async function importMedia(request) {
       if (updates.length) {
         updates.push("updated_at = now()");
         await client.query(`UPDATE media SET ${updates.join(", ")} WHERE id = $1`, values);
+      }
+      if (body.curatedFields.length) {
+        await client.query(
+          "UPDATE media SET curated_fields = ARRAY(SELECT DISTINCT unnest(curated_fields || $2::text[])) WHERE id = $1",
+          [mediaId, body.curatedFields],
+        );
       }
       await client.query(
         `UPDATE external_id SET source_url = $3, last_seen_at = now()

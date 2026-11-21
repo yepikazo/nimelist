@@ -12,6 +12,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "node scripts/build-seed.mjs",
+    "seed:catalog": "node scripts/import-seed-to-catalog.mjs",
     "start:catalog": "npm run start --workspace=@nimelist/catalog-service",
     "start:schedule": "npm run start --workspace=@nimelist/schedule-service",
     "start:search": "npm run start --workspace=@nimelist/search-service",

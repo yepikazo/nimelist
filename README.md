@@ -79,6 +79,15 @@ npm run start:catalog
 
 Untuk Schedule, gunakan database dan role miliknya sendiri pada `DATABASE_URL`, set `CATALOG_SERVICE_URL` (default `http://127.0.0.1:4101`), lalu jalankan `npm run migrate --workspace=@nimelist/schedule-service` dan `npm run start:schedule`. Jangan gunakan satu database/role bersama untuk kedua service.
 
+Importer seed Catalog mengirim metadata media melalui API internal, mempertahankan slug seed, dan berjalan dalam mode pratinjau secara default. Data jadwal demo dari seed tidak diimpor; jadwal dimiliki Schedule Service. Import relasi taxonomy/platform yang ternormalisasi menunggu migrasi tabel Catalog terkait:
+
+```bash
+npm run seed:catalog
+INTERNAL_API_TOKEN='rahasia-random-minimal-32-karakter' CATALOG_SERVICE_URL='http://127.0.0.1:4101' npm run seed:catalog -- --apply
+```
+
+Perintah kedua memerlukan Catalog berjalan, database sudah dimigrasikan, dan token yang sama dengan Catalog. Importer mengirim batch kecil secara idempoten; ia tidak menulis langsung ke database.
+
 ## Rute utama
 
 | Rute | Isi |

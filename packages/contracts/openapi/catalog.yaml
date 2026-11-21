@@ -158,14 +158,29 @@ components:
         titleRomaji: { type: string, minLength: 1, maxLength: 300 }
         titleEnglish: { type: [string, "null"], maxLength: 300 }
         titleNative: { type: [string, "null"], maxLength: 300 }
+        titleId: { type: [string, "null"], maxLength: 300 }
+        slug: { type: [string, "null"], pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', maxLength: 160 }
+        synopsisId: { type: [string, "null"], maxLength: 12000, description: Sinopsis orisinal Indonesia yang telah ditinjau; bukan salinan dari provider. }
         format: { type: [string, "null"], enum: [TV, TV_SHORT, MOVIE, SPECIAL, OVA, ONA, MUSIC, UNKNOWN, null] }
         status: { type: [string, "null"], enum: [FINISHED, RELEASING, NOT_YET_RELEASED, CANCELLED, HIATUS, UNKNOWN, null] }
         season: { type: [string, "null"], enum: [WINTER, SPRING, SUMMER, FALL, null] }
         seasonYear: { type: [integer, "null"], minimum: 1900, maximum: 2100 }
         episodes: { type: [integer, "null"], minimum: 0 }
+        durationMinutes: { type: [integer, "null"], minimum: 0 }
+        scoreAvg: { type: [number, "null"], minimum: 0, maximum: 10 }
+        popularity: { type: [integer, "null"], minimum: 0 }
+        coverUrl: { type: [string, "null"], format: uri }
+        bannerUrl: { type: [string, "null"], format: uri }
+        synonyms: { type: array, items: { type: string, maxLength: 300 } }
         genres: { type: array, items: { type: string, maxLength: 100 } }
         studios: { type: array, items: { type: string, maxLength: 160 } }
         isAdult: { type: [boolean, "null"] }
+        contentStatus: { type: string, enum: [MISSING, DRAFT, REVIEWED, PUBLISHED, REJECTED] }
+        curatedFields:
+          type: array
+          items:
+            type: string
+            enum: [slug, title_id, synopsis_id, format, status, season, season_year, episodes, duration_minutes, score_avg, popularity, cover_url, banner_url, synonyms, genres, studios, is_adult, content_status]
     ApiError:
       type: object
       required: [error]
