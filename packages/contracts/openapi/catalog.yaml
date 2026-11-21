@@ -108,6 +108,35 @@ paths:
                 properties:
                   items: { type: array, items: { $ref: "#/components/schemas/InternalMediaSummary" } }
         "401": { $ref: "#/components/responses/Unauthorized" }
+  /internal/v1/taxonomy/import:
+    post:
+      operationId: importCatalogTaxonomy
+      summary: Upsert genre, studio, dan platform untuk seed katalog.
+      security: [{ serviceToken: [] }]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TaxonomyImport" }
+      responses:
+        "200":
+          description: Taxonomy disimpan secara idempoten.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [genreCount, studioCount, platformCount]
+                properties:
+                  genreCount: { type: integer }
+                  studioCount: { type: integer }
+                  platformCount: { type: integer }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
 components:
   securitySchemes:
     serviceToken:
@@ -138,6 +167,20 @@ components:
             genres: { type: array, items: { type: string } }
             studios: { type: array, items: { type: string } }
             contentStatus: { type: string }
+            platformLinks:
+              type: array
+              items:
+                type: object
+                required: [platformSlug, platformName, url, status]
+                properties:
+                  platformSlug: { type: string }
+                  platformName: { type: string }
+                  url: { type: string, format: uri }
+                  regionCode: { type: string, default: ID }
+                  language: { type: string }
+                  accessType: { type: string }
+                  status: { type: string, enum: [ACTIVE, STALE, BROKEN, REMOVED, SEARCH_ONLY] }
+                  notes: { type: [string, "null"] }
     InternalMediaSummary:
       type: object
       required: [id, slug, title, titleRomaji]
@@ -180,7 +223,59 @@ components:
           type: array
           items:
             type: string
-            enum: [slug, title_id, synopsis_id, format, status, season, season_year, episodes, duration_minutes, score_avg, popularity, cover_url, banner_url, synonyms, genres, studios, is_adult, content_status]
+            enum: [slug, title_id, synopsis_id, format, status, season, season_year, episodes, duration_minutes, score_avg, popularity, cover_url, banner_url, synonyms, genres, studios, is_adult, content_status, platform_links]
+        platformLinks:
+          type: array
+          maxItems: 30
+          items:
+            type: object
+            required: [platformSlug, url]
+            properties:
+              platformSlug: { type: string }
+              url: { type: string, format: uri }
+              language: { type: string, enum: [SUB, DUB, SUB_DUB, RAW, UNKNOWN] }
+              accessType: { type: string, enum: [FREE, SUBSCRIPTION, RENTAL, PURCHASE, SEARCH, UNKNOWN] }
+              status: { type: string, const: SEARCH_ONLY }
+              notes: { type: [string, "null"], maxLength: 1000 }
+    TaxonomyImport:
+      type: object
+      properties:
+        genres:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required: [slug, name]
+            properties:
+              slug: { type: string }
+              name: { type: string, maxLength: 200 }
+              nameId: { type: [string, "null"] }
+              description: { type: [string, "null"] }
+        studios:
+          type: array
+          maxItems: 2000
+          items:
+            type: object
+            required: [slug, name]
+            properties:
+              slug: { type: string }
+              name: { type: string, maxLength: 200 }
+              nameNative: { type: [string, "null"] }
+              websiteUrl: { type: [string, "null"], format: uri }
+        platforms:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required: [slug, name, websiteUrl]
+            properties:
+              slug: { type: string }
+              name: { type: string, maxLength: 200 }
+              websiteUrl: { type: string, format: uri }
+              searchUrlTemplate: { type: [string, "null"] }
+              color: { type: [string, "null"] }
+              description: { type: [string, "null"] }
+              sortOrder: { type: integer, minimum: 0 }
     ApiError:
       type: object
       required: [error]
