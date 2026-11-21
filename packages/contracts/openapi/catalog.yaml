@@ -120,6 +120,10 @@ paths:
         - name: offset
           in: query
           schema: { type: integer, minimum: 0, default: 0 }
+        - name: mediaId
+          in: query
+          description: Jika ada, hanya ambil satu dokumen media dengan UUID tersebut.
+          schema: { type: string, format: uuid }
       responses:
         "200":
           description: Dokumen sumber untuk proyeksi Search, termasuk flag adult agar dapat difilter.

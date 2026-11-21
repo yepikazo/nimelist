@@ -317,6 +317,8 @@ export async function POST(req: Request) {
 - A weekly `reindex:search` rebuilds the projection in batches to catch drift.
 - Search synonyms are owned by Search Service.
 
+**Implemented local path:** Catalog claims `catalog.media.changed` and `catalog.taxonomy.changed` outbox rows using a lease. Media events fetch the latest document through Catalog's protected batch API and upsert it into Search; taxonomy events request an atomic full rebuild. Catalog sets `published_at` only after Search acknowledges the operation. Failures retain the row and retry with exponential backoff (capped at five minutes). Delivery is at-least-once; Search upserts compare Catalog `sourceUpdatedAt` so older concurrent deliveries cannot overwrite newer documents. A Search advisory lock serializes incremental upserts with full-index replacement. This first path uses private HTTP between the two services; it does not require another broker or server. The generic broker relay remains a later option for more consumers.
+
 ### 9.2 Optional Meilisearch backend
 
 - Outbox `INDEX` events enqueue `search:index` jobs.

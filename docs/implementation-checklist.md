@@ -1,7 +1,7 @@
 # Nimelist — Implementation Checklist
 
 **Updated:** 21 November 2026  
-**Status:** Server 2 local stack and initial Search API/projection implemented; event relay, web integration, and server provisioning remain pending.
+**Status:** Server 2 local stack, Search API/projection, and local Catalog-to-Search outbox relay are implemented; web integration and production provisioning remain pending.
 
 This checklist separates completed design work from runnable scaffolding and production work. A health endpoint means a process starts; it does not mean that the service's business functions are implemented.
 
@@ -46,6 +46,7 @@ This checklist separates completed design work from runnable scaffolding and pro
 - [x] Start the local Server 2 containers, apply Catalog/Schedule migrations, and import all 91 media seed records (plus taxonomy and search-only platform links).
 - [x] Configure a local shared `INTERNAL_API_TOKEN` for Catalog/Search internal calls.
 - [x] Apply local Search migration, rebuild 91 documents from Catalog API, and verify exact-title plus typo queries.
+- [x] Deliver all 91 pending media events and one taxonomy event to Search; verify zero pending outbox rows and 91 versioned documents.
 - [ ] Configure production secrets and verify deployed service APIs against production database connections.
 - [ ] Add contract validation/generation in CI.
 - [x] Build and launch the local Server 2 images; PostgreSQL, Redis, Catalog, Schedule, and Search report healthy.
@@ -69,6 +70,7 @@ This checklist separates completed design work from runnable scaffolding and pro
 - [x] Run the media seed importer against local Catalog PostgreSQL and reconcile any slug conflicts.
 - [x] Add normalized genre/studio/platform tables and import their seed relations; keep demo schedule rows out of Catalog.
 - [x] Persist `catalog.media.changed` events in the transactional outbox.
+- [x] Deliver Catalog media/taxonomy outbox events to Search with a lease, retry backoff, and completion timestamp.
 - [ ] Publish catalog outbox events to the broker and mark delivery status.
 
 ### Schedule Service
@@ -84,7 +86,7 @@ This checklist separates completed design work from runnable scaffolding and pro
 - [x] Implement `GET /v1/search` against a Search-owned PostgreSQL projection; Search does not query Catalog tables directly.
 - [x] Start with PostgreSQL full-text search and trigram matching; keep Meilisearch optional pending capacity and relevance measurements.
 - [x] Add an authenticated full projection rebuild from the internal Catalog API and an idempotent document upsert endpoint.
-- [ ] Consume Catalog outbox events idempotently for incremental index updates.
+- [x] Consume Catalog outbox events idempotently for incremental index updates; taxonomy changes trigger a full rebuild.
 - [x] Implement query length limits, cursor pagination, trigram typo fallback, and adult-content exclusion.
 - [ ] Add curated query synonyms, facets, and ranking/relevance measurements.
 

@@ -90,6 +90,8 @@ services:
       DATABASE_URL: postgresql://nimelist_catalog:${CATALOG_DB_PASSWORD:?Set CATALOG_DB_PASSWORD in .env.server2}@postgres:5432/nimelist_catalog
       DB_POOL_MAX: 5
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Set INTERNAL_API_TOKEN in .env.server2}
+      CATALOG_SERVICE_URL: http://catalog:4101
+      SEARCH_SERVICE_URL: http://search:4103
     mem_limit: 320m
     cpus: 0.5
     pids_limit: 64

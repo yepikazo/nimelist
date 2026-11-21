@@ -87,10 +87,11 @@ Profil Docker Server 2 untuk laptop ini ada di `deploy/compose.server2.yml`. Bat
 cp deploy/server2.env.example .env.server2
 # Ganti seluruh nilai replace_with_* dengan secret acak sebelum menjalankan.
 docker compose --env-file .env.server2 -f deploy/compose.server2.yml up -d --build
+docker compose --env-file .env.server2 -f deploy/compose.server2.yml --profile init build catalog-migrate schedule-migrate search-migrate
 docker compose --env-file .env.server2 -f deploy/compose.server2.yml --profile init run --rm catalog-migrate
 docker compose --env-file .env.server2 -f deploy/compose.server2.yml --profile init run --rm schedule-migrate
-docker compose --env-file .env.server2 -f deploy/compose.server2.yml --profile init run --rm seed-import
 docker compose --env-file .env.server2 -f deploy/compose.server2.yml --profile init run --rm search-migrate
+docker compose --env-file .env.server2 -f deploy/compose.server2.yml --profile init run --rm seed-import
 docker compose --env-file .env.server2 -f deploy/compose.server2.yml --profile init run --rm search-reindex
 ```
 
@@ -105,7 +106,7 @@ INTERNAL_API_TOKEN='rahasia-random-minimal-32-karakter' CATALOG_SERVICE_URL='htt
 
 Perintah kedua memerlukan Catalog berjalan, database sudah dimigrasikan, dan token yang sama dengan Catalog. Importer mengirim batch kecil secara idempoten; ia tidak menulis langsung ke database.
 
-Search memiliki proyeksi PostgreSQL FTS/trigram sendiri. Migrasi Search dijalankan setelah stack hidup; `search-reindex` membaca batch melalui endpoint internal Catalog lalu mengganti indeks secara atomik. Endpoint pencarian lokal: `GET http://127.0.0.1:4103/v1/search?q=frieren`. Upsert dokumen Search hanya untuk integrasi internal yang membawa bearer token.
+Search memiliki proyeksi PostgreSQL FTS/trigram sendiri. Migrasi Search dijalankan setelah stack hidup; `search-reindex` membaca batch melalui endpoint internal Catalog lalu mengganti indeks secara atomik. Relay outbox Catalog mengirim perubahan media secara incremental ke Search, mencoba ulang saat gagal, dan membangun ulang indeks saat taxonomy berubah. Endpoint pencarian lokal: `GET http://127.0.0.1:4103/v1/search?q=frieren`.
 
 ## Rute utama
 

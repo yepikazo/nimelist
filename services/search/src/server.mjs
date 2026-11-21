@@ -29,6 +29,8 @@ function parseDocument(item) {
   if (item.seasonYear != null && (!Number.isInteger(Number(item.seasonYear)) || Number(item.seasonYear) < 1900 || Number(item.seasonYear) > 2100)) fail(400, "INVALID_DOCUMENT", "seasonYear tidak valid.");
   if (item.scoreAvg != null && (!Number.isFinite(Number(item.scoreAvg)) || Number(item.scoreAvg) < 0 || Number(item.scoreAvg) > 10)) fail(400, "INVALID_DOCUMENT", "scoreAvg tidak valid.");
   if (item.popularity != null && (!Number.isInteger(Number(item.popularity)) || Number(item.popularity) < 0)) fail(400, "INVALID_DOCUMENT", "popularity tidak valid.");
+  const sourceUpdatedAt = new Date(item.sourceUpdatedAt);
+  if (!item.sourceUpdatedAt || Number.isNaN(sourceUpdatedAt.getTime())) fail(400, "INVALID_DOCUMENT", "sourceUpdatedAt wajib berupa tanggal yang valid.");
   const searchText = normalizedText([
     item.titleRomaji, item.titleEnglish, item.titleNative, item.titleId,
     ...(item.synonyms ?? []), ...(item.genres ?? []), ...(item.studios ?? []),
@@ -52,27 +54,29 @@ function parseDocument(item) {
     popularity: item.popularity ?? 0,
     coverUrl: item.coverUrl ?? null,
     isAdult: item.isAdult ?? false,
+    sourceUpdatedAt: sourceUpdatedAt.toISOString(),
     searchText,
   };
 }
 
 const insertSql = `INSERT INTO search_document (
   media_id, slug, title_romaji, title_english, title_native, title_id, synonyms, genres, studios,
-  platforms, format, status, season, season_year, score_avg, popularity, cover_url, is_adult, search_text, updated_at
-) VALUES ($1,$2,$3,$4,$5,$6,$7::text[],$8::text[],$9::text[],$10::text[],$11,$12,$13,$14,$15,$16,$17,$18,$19,now())
+  platforms, format, status, season, season_year, score_avg, popularity, cover_url, is_adult, search_text, source_updated_at, updated_at
+) VALUES ($1,$2,$3,$4,$5,$6,$7::text[],$8::text[],$9::text[],$10::text[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::timestamptz,now())
 ON CONFLICT (media_id) DO UPDATE SET
   slug=EXCLUDED.slug, title_romaji=EXCLUDED.title_romaji, title_english=EXCLUDED.title_english,
   title_native=EXCLUDED.title_native, title_id=EXCLUDED.title_id, synonyms=EXCLUDED.synonyms,
   genres=EXCLUDED.genres, studios=EXCLUDED.studios, platforms=EXCLUDED.platforms, format=EXCLUDED.format,
   status=EXCLUDED.status, season=EXCLUDED.season, season_year=EXCLUDED.season_year, score_avg=EXCLUDED.score_avg,
   popularity=EXCLUDED.popularity, cover_url=EXCLUDED.cover_url, is_adult=EXCLUDED.is_adult,
-  search_text=EXCLUDED.search_text, updated_at=now()`;
+  search_text=EXCLUDED.search_text, source_updated_at=EXCLUDED.source_updated_at, updated_at=now()
+WHERE EXCLUDED.source_updated_at >= search_document.source_updated_at`;
 
 function valuesFor(document) {
   return [document.mediaId, document.slug, document.titleRomaji, document.titleEnglish, document.titleNative,
     document.titleId, document.synonyms, document.genres, document.studios, document.platforms,
     document.format, document.status, document.season, document.seasonYear, document.scoreAvg,
-    document.popularity, document.coverUrl, document.isAdult, document.searchText];
+    document.popularity, document.coverUrl, document.isAdult, document.searchText, document.sourceUpdatedAt];
 }
 
 function parseCursor(cursor, queryHash) {
@@ -151,6 +155,7 @@ async function upsertDocuments(request) {
   if (!Array.isArray(items) || items.length < 1 || items.length > 100) fail(400, "INVALID_DOCUMENTS", "items harus berisi 1–100 dokumen.");
   const documents = items.map(parseDocument);
   await inTransaction(database(), async (client) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", ["search:projection:catalog"]);
     for (const document of documents) await client.query(insertSql, valuesFor(document));
   });
   return { status: 202, body: { accepted: documents.length } };
@@ -159,6 +164,9 @@ async function upsertDocuments(request) {
 async function rebuildIndex(request) {
   requireServiceToken(request);
   if (!process.env.CATALOG_SERVICE_URL) fail(503, "CATALOG_NOT_CONFIGURED", "Catalog Service URL belum dikonfigurasi.");
+  const lockClient = await database().connect();
+  try {
+    await lockClient.query("SELECT pg_advisory_lock(hashtextextended($1, 0))", ["search:projection:catalog"]);
   const catalogUrl = process.env.CATALOG_SERVICE_URL.replace(/\/$/, "");
   const token = process.env.INTERNAL_API_TOKEN;
   await database().query("TRUNCATE search_document_staging");
@@ -185,9 +193,9 @@ async function rebuildIndex(request) {
     await client.query("TRUNCATE search_document");
     await client.query(`INSERT INTO search_document (
       media_id, slug, title_romaji, title_english, title_native, title_id, synonyms, genres, studios,
-      platforms, format, status, season, season_year, score_avg, popularity, cover_url, is_adult, search_text, updated_at
+      platforms, format, status, season, season_year, score_avg, popularity, cover_url, is_adult, search_text, source_updated_at, updated_at
     ) SELECT media_id, slug, title_romaji, title_english, title_native, title_id, synonyms, genres, studios,
-      platforms, format, status, season, season_year, score_avg, popularity, cover_url, is_adult, search_text, updated_at
+      platforms, format, status, season, season_year, score_avg, popularity, cover_url, is_adult, search_text, source_updated_at, updated_at
       FROM search_document_staging`);
     await client.query("TRUNCATE search_document_staging");
     await client.query(`INSERT INTO search_sync_state (source, last_reindexed_at, document_count)
@@ -195,6 +203,13 @@ async function rebuildIndex(request) {
       SET last_reindexed_at=EXCLUDED.last_reindexed_at, document_count=EXCLUDED.document_count`, [indexed]);
   });
   return { status: 200, body: { indexed, source: "catalog", completedAt: new Date().toISOString() } };
+  } finally {
+    try {
+      await lockClient.query("SELECT pg_advisory_unlock(hashtextextended($1, 0))", ["search:projection:catalog"]);
+    } finally {
+      lockClient.release();
+    }
+  }
 }
 
 async function handleRequest(request, url) {

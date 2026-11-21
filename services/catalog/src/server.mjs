@@ -7,6 +7,7 @@ import {
   startHttpService,
 } from "../../../packages/service-runtime/src/index.mjs";
 import { pool } from "./db.mjs";
+import { startSearchOutboxRelay } from "./search-outbox-relay.mjs";
 
 const port = Number(process.env.PORT ?? 4101);
 const providers = new Set(["offline-db", "manual", "mal", "anilist", "jikan-self-hosted"]);
@@ -519,6 +520,8 @@ async function getInternalSearchDocuments(request, url) {
   requireServiceToken(request);
   const limit = integerParam(url.searchParams.get("limit"), 200, 1, 200);
   const offset = integerParam(url.searchParams.get("offset"), 0, 0, 1_000_000);
+  const mediaId = url.searchParams.get("mediaId");
+  if (mediaId != null && !uuidPattern.test(mediaId)) fail(400, "INVALID_MEDIA_ID", "mediaId harus UUID.");
   const result = await requireDatabase().query(`
     SELECT m.id AS "mediaId", m.slug, m.title_romaji AS "titleRomaji", m.title_english AS "titleEnglish",
       m.title_native AS "titleNative", m.title_id AS "titleId", m.synonyms,
@@ -532,9 +535,9 @@ async function getInternalSearchDocuments(request, url) {
       ) names), '{}'::text[]) AS studios,
       COALESCE((SELECT array_agg(DISTINCT l.platform_slug) FROM media_platform_link l WHERE l.media_id=m.id), '{}'::text[]) AS platforms,
       m.format, m.status, m.season, m.season_year AS "seasonYear", m.score_avg AS "scoreAvg",
-      m.popularity, m.cover_url AS "coverUrl", m.is_adult AS "isAdult"
-    FROM media m ORDER BY m.id LIMIT $1 OFFSET $2`, [limit, offset]);
-  return { status: 200, body: { items: result.rows, nextOffset: result.rowCount === limit ? offset + result.rowCount : null } };
+      m.popularity, m.cover_url AS "coverUrl", m.is_adult AS "isAdult", m.updated_at AS "sourceUpdatedAt"
+    FROM media m WHERE ($3::uuid IS NULL OR m.id = $3::uuid) ORDER BY m.id LIMIT $1 OFFSET $2`, [limit, offset, mediaId]);
+  return { status: 200, body: { items: result.rows, nextOffset: mediaId == null && result.rowCount === limit ? offset + result.rowCount : null } };
 }
 
 async function handleRequest(request, url) {
@@ -568,3 +571,5 @@ startHttpService({
   },
   handleRequest,
 });
+
+startSearchOutboxRelay(pool);

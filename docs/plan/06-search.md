@@ -1,6 +1,6 @@
 # 06 — Search Design
 
-> **Implementation status (21 November 2026):** The first Search API is live in the local Server 2 stack on a Search-owned PostgreSQL FTS/trigram projection. It supports exact/full-text matching, word-trigram fallback, cursor pagination, adult-content exclusion, protected idempotent document upserts, and an atomic rebuild from Catalog's internal batch API. Catalog outbox delivery, synonyms, facets, and measured relevance tuning remain follow-up work.
+> **Implementation status (21 November 2026):** The first Search API is live in the local Server 2 stack on a Search-owned PostgreSQL FTS/trigram projection. It supports exact/full-text matching, word-trigram fallback, cursor pagination, adult-content exclusion, protected idempotent document upserts, and an atomic rebuild from Catalog's internal batch API. Catalog media/taxonomy outbox delivery is wired locally; synonyms, facets, and measured relevance tuning remain follow-up work.
 
 ## 1. Goals
 
